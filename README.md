@@ -81,7 +81,7 @@ The main program and entry point is located in [SummitProgram.cs](https://github
 
 #### Threading
 The SIP uses multi-threading for communication with Open-ephys and saving data to disk (the Summit API also spawns a thread each time a packet is received from the CTM). Thread-safe buffers, defined in the [INSBuffer](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/INSBuffer.cs) class, handle the data flow between the CTM, SIP, Open-ephys, and disk. The buffers use the [ReaderWriterLockSlim](https://msdn.microsoft.com/en-us/library/system.threading.readerwriterlockslim(v=vs.110).aspx) class from .NET. The diagram below illustrates how the threading is set up:
-![system-threading-design](https://github.com/neuromotion/summit-interface-borton/tree/master/Images/SystemThreadingOverview.png)
+![system-threading-design](Images/SystemThreadingOverview.png)
 
 The unfilled arrows from the threads to the "Summit Host Application Thread" (aka the main program thread) indicate that those are child threads of the main program.
 
@@ -331,10 +331,10 @@ double CTM packet number of time point m_currentBufferInd,
 The SIP also maintains a second ZMQ socket to recieve data from Open-ephys. Because we are using it for our brain-spinal-interface project (where Open-ephys runs the sense data through a classifier which then lets us know whether to stimulate the flexors or extensors), the code is currently configured to receive either a "0", a "1"", or a "2", to let the SIP know to run the flexor stimulation program, the extensor stimulation program or neither. Obviously, this is specific to the BSI project, but the SIP can be programed to do whatever you want with the strings received from Open-ephys.
 
 Below is an example image of the Open-ephys GUI in action. The Summit Source plugin is receiving data from 4 sense channels (with one of them receiving a sine wave from a function generator, and the other three floating), which is then fed into an LDA classifier which detects peaks and troughs of the sine wave. A "0", "1", or "2" (visualized by the 5th channel, aka Aux 5 in the display) is then sent to the Summit Sink plugin, which feeds that data back to the SIP. The SIP is configured to stimulate across one set of electrodes when it receives a "1" and another set of electrodes when it receivers a "2".
-![Open-ephys-GUI](https://github.com/neuromotion/summit-interface-borton/tree/master/Images/OpenEphysExample.png)
+![Open-ephys-GUI](Images/OpenEphysExample.png)
 
 Below is an oscilloscope reading of the input sense data stream to the RC+S (top) and the stimulation supplied by the RC+S on different electrode sets (middle and bottom) (there is some delay in turning stimulation on and off, so the peaks and the troughs are offset from the stimulation pulses by some amount).
-![Closed-loop-scope](https://github.com/neuromotion/summit-interface-borton/tree/master/Images/ClosedLoopExample.png)
+![Closed-loop-scope](Images/ClosedLoopExample.png)
 
 The code that handles interfacing with Open-ephys is encapsulated by the [StreamingThread](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/StreamingThread.cs) class. The method responsible for sending data to Open-ephys is `SendSense()` while the method which handles incoming data from Open-ephys is `GetStim()`. The `StreamingThread` class has an additional method `SaveData()` which is responsible for saving the time-domain data to a delimited text file on the hard drive.
 
