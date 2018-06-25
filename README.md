@@ -34,7 +34,7 @@ Known bugs/issues:
 
 Main Program file
 --------------------------
-The main program and entry point is located in [SummitProgram.cs](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/SummitProgram.cs), although much of heaving lifting is off-loaded to helper functions defined in [SummitUtils.cs](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/SummitUtils.cs) to keep the main program as clean and concise as possible. The main program performs the following actions in order:
+The main program and entry point is located in [SummitProgram.cs](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/SummitProgram.cs), although much of heaving lifting is off-loaded to helper functions defined in [SummitUtils.cs](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/SummitUtils.cs) to keep the main program as clean and concise as possible. The main program performs the following actions in order:
 <p align="center">
   Read in JSON parameters file and parse parameters<br /> 
   |<br /> 
@@ -80,8 +80,8 @@ The main program and entry point is located in [SummitProgram.cs](https://github
 
 
 #### Threading
-The SIP uses multi-threading for communication with Open-ephys and saving data to disk (the Summit API also spawns a thread each time a packet is received from the CTM). Thread-safe buffers, defined in the [INSBuffer](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/INSBuffer.cs) class, handle the data flow between the CTM, SIP, Open-ephys, and disk. The buffers use the [ReaderWriterLockSlim](https://msdn.microsoft.com/en-us/library/system.threading.readerwriterlockslim(v=vs.110).aspx) class from .NET. The diagram below illustrates how the threading is set up:
-![system-threading-design](https://github.com/neuromotion/medtronic-brown-smi/blob/master/ReadMe_Images/SystemThreadingOverview.png)
+The SIP uses multi-threading for communication with Open-ephys and saving data to disk (the Summit API also spawns a thread each time a packet is received from the CTM). Thread-safe buffers, defined in the [INSBuffer](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/INSBuffer.cs) class, handle the data flow between the CTM, SIP, Open-ephys, and disk. The buffers use the [ReaderWriterLockSlim](https://msdn.microsoft.com/en-us/library/system.threading.readerwriterlockslim(v=vs.110).aspx) class from .NET. The diagram below illustrates how the threading is set up:
+![system-threading-design](https://github.com/neuromotion/summit-interface-borton/tree/master/Images/SystemThreadingOverview.png)
 
 The unfilled arrows from the threads to the "Summit Host Application Thread" (aka the main program thread) indicate that those are child threads of the main program.
 
@@ -89,7 +89,7 @@ The filled arrows represents data transfer between the two entities. So for exam
 
 The circular arrows indicate what is controlling the looping of each thread. So for example, the Open-ephys sense thread is blocked until a data request from the Open-ephys GUI is made to it. Likewise, the Open-ephys stim thread is blocked until the Open-ephys GUI sends a command to it. The Open-ephys GUI and the data saving thread are never blocked, but loop through at thier own defined rate (I usually use 50ms for Open-ephys GUI, and 100ms for the data saving thread), while the main program is blocked until a keyboard button is pressed. The data packet receiver threads don't loop, but rather are constantly respawned and disposed once the data has been handled.
 
-The [SummitProgram.cs](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/SummitProgram.cs) file, in addition to the main program, contains the callback functions for when data packets are received from the CTM.
+The [SummitProgram.cs](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/SummitProgram.cs) file, in addition to the main program, contains the callback functions for when data packets are received from the CTM.
 
 
 Reading configuration parameters from JSON
@@ -143,7 +143,7 @@ One useful feature of the SIP is to allow for quick re-configuring of sensing an
 }
 ```
 
-The [INSParameters class](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/INSParameters.cs) handles loading and parsing of the the JSON file. Being the naive green programmer that I was, I didn't realize that JSON schemas were already a thing, so I wrote my own schema validator (and not in the smartest way either...). Instead of defining the schema as a JSON itself (like how it's normally done), I instead implemented a `m_allFields` member variable which is an array of all the required JSON keys in the parameters file. The properties and constraints of each key is stored in a `parameterField` struct, which has the following fields:
+The [INSParameters class](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/INSParameters.cs) handles loading and parsing of the the JSON file. Being the naive green programmer that I was, I didn't realize that JSON schemas were already a thing, so I wrote my own schema validator (and not in the smartest way either...). Instead of defining the schema as a JSON itself (like how it's normally done), I instead implemented a `m_allFields` member variable which is an array of all the required JSON keys in the parameters file. The properties and constraints of each key is stored in a `parameterField` struct, which has the following fields:
 * __fieldName__ is the name of the JSON key  
 * __Parent__ and __grandParent__ defines where in the JSON heiarchy the key-value pair is located  
 * __valueType__ indicates what data type the value is (string, bool, double, long, ect).
@@ -154,7 +154,7 @@ The [INSParameters class](https://github.com/neuromotion/medtronic-brown-smi/blo
 * __arraySizeDependancy__ indicates (when the value is an array) when the size of the array must be a certain value, and that value is defined by a key-value pair elsewhere in the JSON file (e.g. the number of sense Anodes must be equal to the number of sense channels)  
 * __manualArraySize__ indicates (when the value is an array) the the set size of the array
 
-The JSON schema I've defined for use with the SIP is hard coded at the the top of the [INSParameters.cs](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/INSParameters.cs) file. To add custom keys, one can simply put in a new entry to the array with the custom `parameterField` fields defined. 
+The JSON schema I've defined for use with the SIP is hard coded at the the top of the [INSParameters.cs](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/INSParameters.cs) file. To add custom keys, one can simply put in a new entry to the array with the custom `parameterField` fields defined. 
 
 To add custom sets of specific values, one can add a `specificValuesGeneric` to the `m_fieldSpecificValues` list.
 
@@ -217,7 +217,7 @@ Unfortuantely right now there isn't a check to make sure that the same button is
 
 #### Parameter Sweeps
 
-While the manual control is great for online parameter optimization, if you want to do offline optimization/analysis, it would be useful to be able to quickly sweep through a bunch of parameter values at the push of a button. The SIP allows you to set up a parameter sweep run using either single pulses, or stimulation bursts, using the [StimSweeper](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/StimSweeper.cs) class. You can iterate across any number of ampitudes, frequencies, or pulse widths in any order using this class.
+While the manual control is great for online parameter optimization, if you want to do offline optimization/analysis, it would be useful to be able to quickly sweep through a bunch of parameter values at the push of a button. The SIP allows you to set up a parameter sweep run using either single pulses, or stimulation bursts, using the [StimSweeper](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/StimSweeper.cs) class. You can iterate across any number of ampitudes, frequencies, or pulse widths in any order using this class.
 
 You can define a set of values that are equally spaced apart (e.g. 20 40 60 80), or any custom set of incrementing values (e.g. 10 25 50 67). You also specify the order of the type of parameter to sweep through (e.g. sweep through all amplitude values at the first frequency value, then all amplitude values at the second frequency value, ect versus sweep through all frequency values at the first amplitude value, then all frequency values at the second amplitude value, ect). You can also define the duration of each stimulation burst at each set of values, (or the number of pulses if you are doing single pulse stimulation), and the pause period between bursts. These are all set up in the JSON parameters file.
 
@@ -326,7 +326,13 @@ double CTM packet number of time point m_currentBufferInd,
 
 The SIP also maintains a second ZMQ socket to recieve data from Open-ephys. Because we are using it for our brain-spinal-interface project (where Open-ephys runs the sense data through a classifier which then lets us know whether to stimulate the flexors or extensors), the code is currently configured to receive either a "0", a "1"", or a "2", to let the SIP know to run the flexor stimulation program, the extensor stimulation program or neither. Obviously, this is specific to the BSI project, but the SIP can be programed to do whatever you want with the strings received from Open-ephys.
 
-The code that handles interfacing with Open-ephys is encapsulated by the [StreamingThread](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/StreamingThread.cs) class. The method responsible for sending data to Open-ephys is `SendSense()` while the method which handles incoming data from Open-ephys is `GetStim()`. The `StreamingThread` class has an additional method `SaveData()` which is responsible for saving the time-domain data to a delimited text file on the hard drive.
+Below is an example image of the Open-ephys GUI in action. The Summit Source plugin is receiving data from 4 sense channels (with one of them receiving a sine wave from a function generator, and the other three floating), which is then fed into an LDA classifier which detects peaks and troughs of the sine wave. A "0", "1", or "2" (visualized by the 5th channel, aka Aux 5 in the display) is then sent to the Summit Sink plugin, which feeds that data back to the SIP. The SIP is configured to stimulate across one set of electrodes when it receives a "1" and another set of electrodes when it receivers a "2".
+![Open-ephys-GUI](https://github.com/neuromotion/summit-interface-borton/tree/master/Images/OpenEphysExample.png)
+
+Below is an oscilloscope reading of the input sense data stream to the RC+S (top) and the stimulation supplied by the RC+S on different electrode sets (middle and bottom) (there is some delay in turning stimulation on and off, so the peaks and the troughs are offset from the stimulation pulses by some amount).
+![Closed-loop-scope](https://github.com/neuromotion/summit-interface-borton/tree/master/Images/ClosedLoopExample.png)
+
+The code that handles interfacing with Open-ephys is encapsulated by the [StreamingThread](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/StreamingThread.cs) class. The method responsible for sending data to Open-ephys is `SendSense()` while the method which handles incoming data from Open-ephys is `GetStim()`. The `StreamingThread` class has an additional method `SaveData()` which is responsible for saving the time-domain data to a delimited text file on the hard drive.
 
 The main program initializes an instance of `StreamingThread` by indicating which of the three functions to run. `StartThread()` is then called to run the function, until `StopThread()` is called.
 
