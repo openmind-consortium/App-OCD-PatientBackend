@@ -1,4 +1,4 @@
-Borton Lab Summit Interface Program (SIP)
+Borton Lab Summit Interface Project (SIP)
 =====
 David Xing, last updated 6/18/2018
 
@@ -6,7 +6,7 @@ Introduction
 --------------------------
 This command line program was created to provide an easy way to setup and control Medtronic's RC+S (or other hardware using the Summit system) sensing and stimulating capabilities. The SIP provides 3 main functionalities:
 
-  * Configure sensing and stimuation by editing the stim and sense parameters in a JSON file. The SIP will read in the file and automatically set up the RC+S according to the specified parameters. Some error checking of parameters is provided (i.e. will throw an error if you try to set up anode and cathode on different bores)
+  * Configure sensing and stimulation by editing the stim and sense parameters in a JSON file. The SIP will read in the file and automatically set up the RC+S according to the specified parameters. Some error checking of parameters is provided (i.e. will throw an error if you try to set up anode and cathode on different bores)
 
   * Real-time manual control of stimulation. Lets users change amplitude, frequency, and pulse width of stimulation with keyboard buttons. Also allows for switching between programs and groups (basically all the functionality of the "Summit Stimulation" training Code). However it has the additional functionality of letting you set up a stimulation run that sweeps across stimulation parameters (i.e. stimulate 2 sec bursts at 0.2, 0.4, 0.6, 0.8, and 1mA with 2 sec rest between bursts) with a single button push.
 
@@ -36,9 +36,9 @@ Main Program file
 --------------------------
 The main program and entry point is located in [SummitProgram.cs](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/SummitProgram.cs), although much of heaving lifting is off-loaded to helper functions defined in [SummitUtils.cs](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/SummitUtils.cs) to keep the main program as clean and concise as possible. The main program performs the following actions in order:
 <p align="center">
-  Read in JSON parameters file and parse parameters<br /> 
-  |<br /> 
-  V<br /> 
+  Read in JSON parameters file and parse parameters<br />
+  |<br />
+  V<br />
   Initialize resources (buffers, file handles, variables, ect)<br />
   |<br />
   V<br />
@@ -85,7 +85,7 @@ The SIP uses multi-threading for communication with Open-ephys and saving data t
 
 The unfilled arrows from the threads to the "Summit Host Application Thread" (aka the main program thread) indicate that those are child threads of the main program.
 
-The filled arrows represents data transfer between the two entities. So for example the Open-ephys sense thread pushes data from the main program thread to the Open-ephys GUI (and when it sends the data over, it flushes the data in the Open-ephys data buffer). 
+The filled arrows represents data transfer between the two entities. So for example the Open-ephys sense thread pushes data from the main program thread to the Open-ephys GUI (and when it sends the data over, it flushes the data in the Open-ephys data buffer).
 
 The circular arrows indicate what is controlling the looping of each thread. So for example, the Open-ephys sense thread is blocked until a data request from the Open-ephys GUI is made to it. Likewise, the Open-ephys stim thread is blocked until the Open-ephys GUI sends a command to it. The Open-ephys GUI and the data saving thread are never blocked, but loop through at thier own defined rate (I usually use 50ms for Open-ephys GUI, and 100ms for the data saving thread), while the main program is blocked until a keyboard button is pressed. The data packet receiver threads don't loop, but rather are constantly respawned and disposed once the data has been handled.
 
@@ -154,7 +154,7 @@ The [INSParameters class](https://github.com/neuromotion/medtronic-brown-smi/blo
 * __arraySizeDependancy__ indicates (when the value is an array) when the size of the array must be a certain value, and that value is defined by a key-value pair elsewhere in the JSON file (e.g. the number of sense Anodes must be equal to the number of sense channels)  
 * __manualArraySize__ indicates (when the value is an array) the the set size of the array
 
-The JSON schema I've defined for use with the SIP is hard coded at the the top of the [INSParameters.cs](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/INSParameters.cs) file. To add custom keys, one can simply put in a new entry to the array with the custom `parameterField` fields defined. 
+The JSON schema I've defined for use with the SIP is hard coded at the the top of the [INSParameters.cs](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/INSParameters.cs) file. To add custom keys, one can simply put in a new entry to the array with the custom `parameterField` fields defined.
 
 To add custom sets of specific values, one can add a `specificValuesGeneric` to the `m_fieldSpecificValues` list.
 
@@ -167,16 +167,16 @@ To get the value of the key, use the `GetParam()` method, e.g.:
 	int numSenseChans = parameters.GetParam("Sense.nChans", typeof(int));
 ```
 
-When specifying the type of the parameter you want to get, the SIP will try to cast the value of the parameter using `Convert.ChangeType()`. If it is unable to cast to the specified type, it will throw an exception. 
+When specifying the type of the parameter you want to get, the SIP will try to cast the value of the parameter using `Convert.ChangeType()`. If it is unable to cast to the specified type, it will throw an exception.
 
 If the parameter is an array, you can specify an index as an optional third arguement to `GetParam()` to get the value at the index in the array. If you do not specify an index, it will just return the whole array as a `List<dynamic>`. Note that this means in your code, you need to use the `var` type as the return type of `GetParam()` if you want an array of values. E.g.
 
 ```csharp
 	INSParameters parameters = new INSParameters("INSParameters.json");
-	
+
 	\\get a single value from the array
 	int firstAnode = parameters.GetParam("Sense.Anode", typeof(int), 0);
-	
+
 	\\get the whole array
 	var allAnodes = parameters.GetParam("Sense.Anode", typeof(int));
 	int secondAnode = allAnodes[1];
@@ -206,13 +206,13 @@ You can specify how much you want to change the amplitude/pulse width/frequency 
 "DecrementFreqButton": "/",
 "IncrementPWButton": "u",
 "DecrementPWButton":  "d",
-		
+
 "ChangeAmpAmountMilliAmps": 0.2,
 "ChangeFreqAmountHz": 5,
 "ChangePWAmountMicroSeconds": 10
 }
 ```
-	
+
 Unfortuantely right now there isn't a check to make sure that the same button isn't being used for multiple functions, so be careful when assigning buttons.
 
 #### Parameter Sweeps
@@ -329,5 +329,3 @@ The SIP also maintains a second ZMQ socket to recieve data from Open-ephys. Beca
 The code that handles interfacing with Open-ephys is encapsulated by the [StreamingThread](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/StreamingThread.cs) class. The method responsible for sending data to Open-ephys is `SendSense()` while the method which handles incoming data from Open-ephys is `GetStim()`. The `StreamingThread` class has an additional method `SaveData()` which is responsible for saving the time-domain data to a delimited text file on the hard drive.
 
 The main program initializes an instance of `StreamingThread` by indicating which of the three functions to run. `StartThread()` is then called to run the function, until `StopThread()` is called.
-
-
