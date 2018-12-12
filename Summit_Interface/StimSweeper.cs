@@ -324,6 +324,11 @@ namespace Summit_Interface
                     Thread.Sleep(m_sweepParameters.permutationDuration);
                 }
 
+                //just call some function to interragate INS to allow any OOR info to arrive (add 100 ms sleep to all time for setting the abort flags)
+                TherapyGroup groupInfo = new TherapyGroup();
+                m_summit.ReadStimGroup(m_groupNum, out groupInfo);
+                Thread.Sleep(100);
+
             }
 
             //ok sweep finished, reset all parametrs and flags, and join listener thread

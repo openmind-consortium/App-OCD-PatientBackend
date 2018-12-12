@@ -149,8 +149,10 @@ namespace Summit_Interface
             public int prevPacketNSamples;
             /// <summary>   The packet number of the previous received packet. </summary>
             public int prevPacketNum;
-            /// <summary>   The timestamp of the previous received packet. </summary>
+            /// <summary>   The INS timestamp of the previous received packet (uint16). </summary>
             public ushort prevPacketTime;
+            /// <summary>   The timestamp estimate of the previous received packet (int64). </summary>
+            public long prevPacketEstTimeDiff;
             /// <summary>   The values of the most recent data point in the previous received packet. </summary>
             public double[] prevValues;
         }
@@ -1211,7 +1213,7 @@ namespace Summit_Interface
             sweepParams.pulseWidthValues = new List<int>();
 
             sweepParams.freqOrder = 2; //when using single pulse sweep, freq order is 2
-            sweepParams.freqValues = new List<double>() { 1.6 }; //since we're doing single pulse, use frequency of 1.6Hz, TODO: verify with Ben if this is about the lowest it can go)
+            sweepParams.freqValues = new List<double>() { 2 }; //since we're doing single pulse, use frequency of 1.6Hz, TODO: verify with Ben if this is about the lowest it can go)
             
 
             //for amp, pulsewidth, and frequency, go through and get the values from the JSON parameters
@@ -1492,7 +1494,7 @@ namespace Summit_Interface
                 //probably what happend was the packet numbers got jumbled and a packet number from after it loops came before the numbers before it looped
                 // e.g. 253 254 2 255 0 1 3 4 5
                 //              ^--------^ packet mixed up
-                Console.WriteLine("Packet number is more tha 245 more than the previous packet number!");
+                Console.WriteLine("Packet number is more than 245 more than the previous packet number!");
                 
                 //ignore the packet
                 return false;

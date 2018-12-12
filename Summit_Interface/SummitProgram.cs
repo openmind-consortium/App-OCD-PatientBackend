@@ -52,9 +52,10 @@ namespace Summit_Interface
         static int m_nTDChans = 0;
         static int m_TDPacketCount = 0;
         static bool m_firstPacket = true;
-        static ushort m_prevPacketTime = 0;
-        static int m_prevPacketNSamples = 0;
-        static int m_prevPacketNum = 0;
+        static ushort m_prevPacketTime = 0; //TODO: make thread safe
+        static long m_prevPacketEstTime = 0; //TODO: make thread safe
+        static int m_prevPacketNSamples = 0; //TODO: make thread safe
+        static int m_prevPacketNum = 0; //TODO: make thread safe
         static double[] m_prevLastValues = new double[0]; //default have to have something, but it's a dont-care
         static TdSampleRates m_samplingRate;
         static bool m_singlePulseSweeping;
@@ -520,41 +521,47 @@ namespace Summit_Interface
             //if either of them are enabled, then stim sweeping is enabled
             if(doSinglePulseSweep || doBurstSweep)
             {
-                Console.WriteLine("Configuring stim sweep group and program...");
-                List<APIReturnInfo> initReturnInfo = new List<APIReturnInfo>();
-
-                //first configure group
-                stimSweepGroupConfig.PulseWidthLowerLimit = (byte)configParameters.pulseWidthLowerLimit;
-                stimSweepGroupConfig.PulseWidthUpperLimit = (byte)configParameters.pulseWidthUpperLimit;
-                stimSweepGroupConfig.RatePeriod = (ushort)configParameters.startingRatePeriod;
-                stimSweepGroupConfig.RatePeriodLowerLimit = (ushort)configParameters.ratePeriodLowerLimit;
-                stimSweepGroupConfig.RatePeriodUpperLimit = (ushort)configParameters.ratePeriodUpperLimit;
-
-                initReturnInfo.Add(m_summit.StimChangeActiveGroup(stimSweepGroupActive.Value));
-                initReturnInfo.Add(m_summit.StimChangeTherapyOff(false));
-                Thread.Sleep(1000);
-                initReturnInfo.Add(m_summit.zAuthStimModifyClearGroup(stimSweepGroupNum.Value));
-                initReturnInfo.AddRange(m_summit.zAuthStimWriteGroup(stimSweepGroupNum.Value, stimSweepGroupConfig));
-
-                //next configure program
-                stimSweepProgramParams.amplitude = configParameters.startingAmp;
-                stimSweepProgramParams.ampLower = configParameters.ampLowerLimit;
-                stimSweepProgramParams.ampUpper = configParameters.ampUpperLimit;
-                stimSweepProgramParams.pulseWidth = configParameters.startingPulseWidth;
-
-                int amplitudeLimitLowerBlah, amplitudeLimitUpperBlah; //just placeholders, don't need these outputs
-                TherapyProgram stimSweepProgram = new TherapyProgram();
-                SummitUtils.ConfigureStimProgram(parameters, "StimSweep", 0, out stimSweepProgram, out amplitudeLimitLowerBlah, out amplitudeLimitUpperBlah, stimSweepProgramParams);
-                initReturnInfo.Add(m_summit.zAuthStimWriteAmplitudeLimits(stimSweepGroupNum.Value, 0, (byte)configParameters.ampLowerLimit, (byte)configParameters.ampUpperLimit));
-                initReturnInfo.AddRange(m_summit.zAuthStimWriteProgram(stimSweepGroupNum.Value, 0, stimSweepProgram));
-
-                // Go through init return
-                foreach (APIReturnInfo aReturn in initReturnInfo)
+                if (useAuthCommands)
                 {
-                    if (aReturn.RejectCode != 0)
+                    Console.WriteLine("Configuring stim sweep group and program...");
+                    List<APIReturnInfo> initReturnInfo = new List<APIReturnInfo>();
+
+                    //first configure group
+                    stimSweepGroupConfig.PulseWidthLowerLimit = (byte)configParameters.pulseWidthLowerLimit;
+                    stimSweepGroupConfig.PulseWidthUpperLimit = (byte)configParameters.pulseWidthUpperLimit;
+                    stimSweepGroupConfig.RatePeriod = (ushort)configParameters.startingRatePeriod;
+                    stimSweepGroupConfig.RatePeriodLowerLimit = (ushort)configParameters.ratePeriodLowerLimit;
+                    stimSweepGroupConfig.RatePeriodUpperLimit = (ushort)configParameters.ratePeriodUpperLimit;
+
+                    initReturnInfo.Add(m_summit.StimChangeActiveGroup(stimSweepGroupActive.Value));
+                    initReturnInfo.Add(m_summit.StimChangeTherapyOff(false));
+                    Thread.Sleep(1000);
+                    initReturnInfo.Add(m_summit.zAuthStimModifyClearGroup(stimSweepGroupNum.Value));
+                    initReturnInfo.AddRange(m_summit.zAuthStimWriteGroup(stimSweepGroupNum.Value, stimSweepGroupConfig));
+
+                    //next configure program
+                    stimSweepProgramParams.amplitude = configParameters.startingAmp;
+                    stimSweepProgramParams.ampLower = configParameters.ampLowerLimit;
+                    stimSweepProgramParams.ampUpper = configParameters.ampUpperLimit;
+                    stimSweepProgramParams.pulseWidth = configParameters.startingPulseWidth;
+
+                    int amplitudeLimitLowerBlah, amplitudeLimitUpperBlah; //just placeholders, don't need these outputs
+                    TherapyProgram stimSweepProgram = new TherapyProgram();
+                    SummitUtils.ConfigureStimProgram(parameters, "StimSweep", 0, out stimSweepProgram, out amplitudeLimitLowerBlah, out amplitudeLimitUpperBlah, stimSweepProgramParams);
+                    initReturnInfo.Add(m_summit.zAuthStimWriteAmplitudeLimits(stimSweepGroupNum.Value, 0, (byte)configParameters.ampLowerLimit, (byte)configParameters.ampUpperLimit));
+                    initReturnInfo.AddRange(m_summit.zAuthStimWriteProgram(stimSweepGroupNum.Value, 0, stimSweepProgram));
+
+                    // Go through init return
+                    foreach (APIReturnInfo aReturn in initReturnInfo)
                     {
-                        Console.WriteLine("Error during Stim Sweep configuration. Error descriptor:" + aReturn.Descriptor);
+                        if (aReturn.RejectCode != 0)
+                        {
+                            Console.WriteLine("Error during Stim Sweep configuration. Error descriptor:" + aReturn.Descriptor);
+                        }
                     }
+                } else
+                {
+                    Console.WriteLine("Not using Auth commands, make sure the group and program (0) is configured correctly on the RLP!");
                 }
 
                 //get start button
@@ -713,13 +720,12 @@ namespace Summit_Interface
             if (doSensing)
             {
                 m_summit.DataReceivedTDHandler += SummitTimeDomainPacketReceived;
-                m_summit.UnexpectedLinkStatusHandler += SummitLinkStatusReceived;
                 //TODO: Add frequency domain streams
                 //theSummit.dataReceivedPower += theSummit_DataReceived_Power;
                 //theSummit.dataReceivedFFT += theSummit_DataReceived_FFT;
                 //theSummit.dataReceivedAccel += theSummit_DataReceived_Accel;
             }
-
+            m_summit.UnexpectedLinkStatusHandler += SummitLinkStatusReceived;
 
 
             ////Start stim control (user control)=============================================
@@ -1030,6 +1036,7 @@ namespace Summit_Interface
 
                 // Print out the command's status
                 Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                bufferInfo = new APIReturnInfo();
 
                 thekey = Console.ReadKey(true);
 
@@ -1150,16 +1157,32 @@ namespace Summit_Interface
             interpParams.prevPacketNSamples = m_prevPacketNSamples;
             m_prevPacketNSamples = nSamples;
 
+            //estimate number of times SystemTick looped (since it's an uint16, 65535 max value, so can loop if more than 6.5 s)
+            //get estimate timestamp of current packet
+            long packetEstTime = TdSenseEvent.GenerationTimeEstimate.Ticks; //ticks in 100 ns
+            //save difference between current and previous packet
+            interpParams.prevPacketEstTimeDiff = packetEstTime - m_prevPacketEstTime;
+            //one loop is 65536 values
+            int nloops = (int)Math.Floor((double)(packetEstTime - m_prevPacketEstTime)/65536000);
+            m_prevPacketEstTime = packetEstTime;
+
+            //number of loops should never be negative
+            if (nloops < 0)
+            {
+                Console.WriteLine("Previous packet INS time estimate is greater than current!");
+                nloops = 0;
+            }
+
+            //now do the interpolation
             if (!m_firstPacket && nDroppedPackets != 0 && interp)
             {
-                //now do the interpolation
                 interpParams.nChans = m_nTDChans;
                 interpParams.timestampDiff = packetTime - interpParams.prevPacketTime;
                 interpParams.secondsToTimeStamp = 10000; //since using SystemTick which is in 100us
                 interpParams.nDroppedPackets = nDroppedPackets;
                 interpParams.samplingRate = m_samplingRate;
                 interpParams.prevValues = m_prevLastValues;
-
+                
                 SummitUtils.InterpolateDroppedSamples(m_TDBuffer, m_dataSavingBuffer, TdSenseEvent, interpParams);
             }
 
@@ -1175,6 +1198,7 @@ namespace Summit_Interface
                 foreach (SenseTimeDomainChannel chan in TdSenseEvent.ChannelSamples.Keys)
                 {
                     double sampleVolts = TdSenseEvent.ChannelSamples[chan][iSample];
+
                     chanData[iChan, iSample] = sampleVolts;
 
                     //save last value for interpolation of missing packets
