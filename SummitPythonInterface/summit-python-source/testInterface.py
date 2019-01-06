@@ -11,7 +11,7 @@ context = zmq.Context()
 
 zmqSend = context.socket(zmq.PUB)
 # The communication is made on socket 12345
-zmqSend.bind("tcp://*:12345")
+zmqSend.bind("tcp://127.0.0.1:12345")
 
 stimParams = {
     'Group' : 0,
@@ -27,24 +27,25 @@ try:
     while(True):
         stimParams['Amplitude'][0] = 1
         zmqSend.send_json(stimParams)
-        time.sleep(3)
+        time.sleep(1)
         stimParams['Amplitude'][1] = 1
         zmqSend.send_json(stimParams)
-        time.sleep(3)
+        time.sleep(1)
         stimParams['Frequency'] = 25
         stimParams['Amplitude'][0] = 1
         zmqSend.send_json(stimParams)
-        time.sleep(3)
+        time.sleep(1)
         stimParams['Amplitude'][0] = 1
         stimParams['Amplitude'][1] = 1
         zmqSend.send_json(stimParams)
-        time.sleep(3)
+        time.sleep(1)
         stimParams['Amplitude'][0] = 1
         stimParams['AddReverse'] = False
         zmqSend.send_json(stimParams)
-        time.sleep(3)
+        time.sleep(1)
         stimParams['Frequency'] = 100
         stimParams['AddReverse'] = True
+        print('Sent one loop')
 finally:
     stimParams['ForceQuit'] = True
     zmqSend.send_json(stimParams)
