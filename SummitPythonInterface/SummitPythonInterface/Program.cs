@@ -175,7 +175,7 @@ namespace SummitPythonInterface
             // Disable the loop recorder
             MiscellaneousSensing miscsettings = new MiscellaneousSensing();
             miscsettings.Bridging = BridgingConfig.None;
-            miscsettings.StreamingRate = StreamingFrameRate.Frame50ms;
+            miscsettings.StreamingRate = StreamingFrameRate.Frame30ms;
             miscsettings.LrTriggers = LoopRecordingTriggers.None;
 
             // ******************* Write the sensing configuration to the device *******************
@@ -213,10 +213,9 @@ namespace SummitPythonInterface
             returnInfoBuffer = theSummit.WriteSensingEnableStreams(true, false, false, false, false, true, true, false);
             Console.WriteLine("Write Stream Config Status: " + returnInfoBuffer.Descriptor);
 
-            using (SubscriberSocket stimSocket = new SubscriberSocket())
+            using (ResponseSocket stimSocket = new ResponseSocket())
             {
-                stimSocket.Bind("tcp://127.0.0.1:12345");
-                stimSocket.Subscribe("");
+                stimSocket.Connect("tcp://192.168.4.2:12345");
                 // Create some standard buffers for the output values form the various inc/dec functions. 
                 APIReturnInfo bufferInfo = new APIReturnInfo();
 
@@ -269,32 +268,45 @@ namespace SummitPythonInterface
                 }
                 Thread.Sleep(500);
 
-                // Set amplitudes to 0
-                bufferInfo = theSummit.StimChangeStepAmp(0, -insStateGroupA.Programs[0].AmplitudeInMilliamps, out currentAmp[0]);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                bufferInfo = theSummit.StimChangeStepAmp(1, -insStateGroupA.Programs[1].AmplitudeInMilliamps, out currentAmp[1]);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-
-                // Set pw's to 250
-                bufferInfo = theSummit.StimChangeStepPW(0, 250 - insStateGroupA.Programs[0].PulseWidthInMicroseconds, out currentPW[0]);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                bufferInfo = theSummit.StimChangeStepPW(1, 250 - insStateGroupA.Programs[1].PulseWidthInMicroseconds, out currentPW[1]);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-
-                // Set the Stimulation Frequency to 100Hz, keep to sense friendly values
-                bufferInfo = theSummit.StimChangeStepFrequency(100 - insStateGroupA.RateInHz, true, out currentFreq);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-
-                string gotMessage;
-                
+                int waitPeriod = 5; // wait this much after each command is sent
+                int bToothDelay = 160; // add this much wait to account for transmission delay
+                bool verbose = false;
                 try
                 {
-                    while (true)
+                    // Set amplitudes to 0
+                    bufferInfo = theSummit.StimChangeStepAmp(0, -insStateGroupA.Programs[0].AmplitudeInMilliamps, out currentAmp[0]);
+                    Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                    Thread.Sleep(waitPeriod);
+                    bufferInfo = theSummit.StimChangeStepAmp(1, -insStateGroupA.Programs[1].AmplitudeInMilliamps, out currentAmp[1]);
+                    Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                    Thread.Sleep(waitPeriod);
+
+                    // Set pw's to 250
+                    bufferInfo = theSummit.StimChangeStepPW(0, 250 - insStateGroupA.Programs[0].PulseWidthInMicroseconds, out currentPW[0]);
+                    Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                    Thread.Sleep(waitPeriod);
+                    bufferInfo = theSummit.StimChangeStepPW(1, 250 - insStateGroupA.Programs[1].PulseWidthInMicroseconds, out currentPW[1]);
+                    Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                    Thread.Sleep(waitPeriod);
+                    // Set the Stimulation Frequency to 100Hz, keep to sense friendly values
+                    //bufferInfo = theSummit.StimChangeStepFrequency(100 - insStateGroupA.RateInHz, true, out currentFreq);
+                    double freqDelta = 100 - insStateGroupA.RateInHz;
+                    if (freqDelta != 0)
+                    {
+                        bufferInfo = theSummit.StimChangeStepFrequency(freqDelta, true, out currentFreq);
+                        Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                        Thread.Sleep(waitPeriod);
+                    }
+                    Thread.Sleep(bToothDelay);
+
+                    string gotMessage;
+                    bool breakFlag = false;
+                    while (!breakFlag)
                     {
 
                         //listening for messages is blocking for 1000 ms, after which it will check if it should exit thread, and if not, listen again (have this so that this thread isn't infinitely blocking when trying to join)
                         stimSocket.TryReceiveFrameString(TimeSpan.FromMilliseconds(1000), out gotMessage);
-
+                        string ack;
                         if (gotMessage == null) //no actual message received, just the timeout being hit
                         {
                             Console.WriteLine(" Waiting for a message...");
@@ -302,42 +314,117 @@ namespace SummitPythonInterface
                         }
 
                         StimParams stimParams = JsonConvert.DeserializeObject<StimParams>(gotMessage);
-                        if (stimParams.ForceQuit)
-                        { break; }
 
-                        // Set the Stimulation Frequency, keep to sense friendly values
-                        bufferInfo = theSummit.StimChangeStepFrequency(stimParams.Frequency - (double)currentFreq, true, out currentFreq);
-                        Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-
-                        for (byte i = 0; i < 2; i++)
+                        var updateOrder = new List<byte>() { 0, 0 };
+                        if (stimParams.Amplitude[0] >= stimParams.Amplitude[1])
                         {
-                            bufferInfo = theSummit.StimChangeStepAmp(i, stimParams.Amplitude[i] - (double)currentAmp[i], out currentAmp[i]);
-                            Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                            updateOrder[1] = 1;
                         }
+                        else
+                        {
+                            updateOrder[0] = 1;
+                        }
+                        // Set the Stimulation Frequency, keep to sense friendly values
+                        freqDelta = stimParams.Frequency - (double)currentFreq;
+                        if (freqDelta != 0)
+                        {
+                            bufferInfo = theSummit.StimChangeStepFrequency(freqDelta, true, out currentFreq);
+                            if (verbose)
+                            { Console.WriteLine(" Command Status:" + bufferInfo.Descriptor); }
+                            Thread.Sleep(waitPeriod);
+                            if (bufferInfo.RejectCode != 0)
+                            {
+                                Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
+                                ack = "Exiting due to error";
+                                stimSocket.SendFrame(ack);
+                                breakFlag = true;
+                            }
+                        }
+                        if (breakFlag) { break; }
+                        int adjustedWait = stimParams.DurationInMilliseconds - (int)(3 * 1000 / currentFreq) - bToothDelay;
+                        if (adjustedWait < 0) { adjustedWait = 10; }
+                        Console.WriteLine("Adjusted wait time between trains is {0}", adjustedWait); 
+                        foreach(byte i in updateOrder)
+                        {
+                            double deltaAmp = stimParams.Amplitude[i] - (double)currentAmp[i];
+                                bufferInfo = theSummit.StimChangeStepAmp(i, deltaAmp, out currentAmp[i]);
+                                if (verbose)
+                                { Console.WriteLine(" Command Status:" + bufferInfo.Descriptor); }
+                                Thread.Sleep(waitPeriod);
+                                if (bufferInfo.RejectCode != 0)
+                                {
+                                    Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
+                                    ack = "Exiting due to error";
+                                    stimSocket.SendFrame(ack);
+                                    breakFlag = true;
+                                }
+                        }
+                        if (breakFlag) { break; }
 
-                        // Let it run for the requested duration
-                        Thread.Sleep(stimParams.DurationInMilliseconds);
+                        // Let it run for the requested duration (subtract effect of having to wait for 2 pulses)
+                        Thread.Sleep(adjustedWait);
+                        //Thread.Sleep(bToothDelay);
 
                         if (stimParams.AddReverse)
                         {
-                            for (byte i = 0; i < 2; i++)
+                            foreach (byte i in updateOrder)
                             {
-                                bufferInfo = theSummit.StimChangeStepAmp(i, stimParams.Amplitude[1-i] - (double)currentAmp[i], out currentAmp[i]);
-                                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                                double deltaAmp = stimParams.Amplitude[1 - i] - (double)currentAmp[i];
+                                    bufferInfo = theSummit.StimChangeStepAmp(i, deltaAmp, out currentAmp[i]);
+                                        if (verbose)
+                                        { Console.WriteLine(" Command Status:" + bufferInfo.Descriptor); }
+                                    Thread.Sleep(waitPeriod);
+                                    if (bufferInfo.RejectCode != 0)
+                                    {
+                                        Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
+                                        ack = "Exiting due to error";
+                                        stimSocket.SendFrame(ack);
+                                        breakFlag = true;
+                                    }
+                            
                             }
-
+                            if (breakFlag) { break; }
                             // Let the flipped condition run for the requested duration
-                            Thread.Sleep(stimParams.DurationInMilliseconds);
+                            Thread.Sleep(adjustedWait);
+                            //Thread.Sleep(bToothDelay);
                         }
 
                         // Return amplitudes to zero
-                        for (byte i = 0; i < 2; i++)
+                        foreach (byte i in updateOrder)
                         {
-                            bufferInfo = theSummit.StimChangeStepAmp(i, - (double)currentAmp[i], out currentAmp[i]);
-                            Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                                bufferInfo = theSummit.StimChangeStepAmp(i, -(double)currentAmp[i], out currentAmp[i]);
+                                if (verbose)
+                                {
+                                    Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                                }
+                                Thread.Sleep(waitPeriod);
+                                if (bufferInfo.RejectCode != 0)
+                                {
+                                    Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
+                                    ack = "Exiting due to error";
+                                    stimSocket.SendFrame(ack);
+                                    breakFlag = true;
+                                }
+                         
+                        }
+                        if (breakFlag) { break; }
+
+                        if (stimParams.ForceQuit)
+                        {
+                            ack = "Exited normally";
+                            stimSocket.SendFrame(ack);
+                            break;
+
                         }
 
+                        ack = "Updated Stim";
+                        stimSocket.SendFrame(ack);
+
                     }
+                }
+                catch (System.IO.IOException e)
+                {
+                    Console.WriteLine("Error : {0}", e.Message);
                 }
                 finally
                 {
@@ -368,6 +455,7 @@ namespace SummitPythonInterface
             //   + "; Time Generated:" + TdSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
 
             // Log some information about the received packet out to file
+
             theSummit.LogCustomEvent(TdSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", TdSenseEvent.Header.GlobalSequence.ToString());
         }
 

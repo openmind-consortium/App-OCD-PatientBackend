@@ -5,7 +5,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using ZeroMQ;
+using NetMQ;
+using NetMQ.Sockets;
 
 namespace netMQTesting
 {
@@ -16,25 +17,30 @@ namespace netMQTesting
             string ack = "Stim Updated";
 
             // Create
-            using (var zMQContext = new ZContext())
-            using (var stimSocket = new ZSocket(zMQContext, ZSocketType.REP))
+            using (ResponseSocket stimSocket = new ResponseSocket())
             {
                 // Bind
-                stimSocket.Bind("tcp://*:12345");
+                stimSocket.Connect("tcp://192.168.4.2:12345");
 
                 while (true)
                 {
                     // Receive
-                    using (ZFrame request = stimSocket.ReceiveFrame())
+                    Console.WriteLine("Waiting for Message...");
+                    string gotMessage;
+                    stimSocket.TryReceiveFrameString(TimeSpan.FromMilliseconds(1000), out gotMessage);
+                    if (gotMessage == null) //no actual message received, just the timeout being hit
                     {
-                        Console.WriteLine("Received {0}", request.ReadString());
-
-                        // Do some work
-                        Thread.Sleep(1);
-
-                        // Send
-                        stimSocket.Send(new ZFrame(ack));
+                        Console.WriteLine(" Waiting for a message...");
+                        continue;
                     }
+                    Console.WriteLine("Received {0}", gotMessage);
+
+                    // Do some work
+                    Thread.Sleep(1);
+
+                    // Send
+                    stimSocket.SendFrame(ack);
+                    
                 }
             }
         }

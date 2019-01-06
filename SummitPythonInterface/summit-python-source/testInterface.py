@@ -2,7 +2,8 @@ import time
 
 # Import ZeroMQ package
 import zmq
-from zmq import ssh
+import json
+import traceback
 
 # Initialize the ZeroMQ context
 context = zmq.Context()
@@ -11,10 +12,12 @@ context = zmq.Context()
 
 zmqSend = context.socket(zmq.REQ)
 # The communication is made on socket 12345
-zmqSend.bind("tcp://192.168.4.2:12345")
+zmqSend.bind("tcp://eth0:12345")
 
 def messageTrans(sock, paramDict):
-    sock.send_json(paramDict)
+    paramStr = json.dumps(paramDict)
+    print("Sending %s" % paramStr)
+    sock.send(paramStr.encode(encoding = 'UTF-8'))
     print("Sent transmission...")
     #  Get the reply.
     message = sock.recv()
