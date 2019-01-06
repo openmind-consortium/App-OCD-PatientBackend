@@ -9,9 +9,17 @@ context = zmq.Context()
 
 # Configure ZeroMQ to send messages
 
-zmqSend = context.socket(zmq.PUB)
+zmqSend = context.socket(zmq.REQ)
 # The communication is made on socket 12345
-zmqSend.bind("tcp://127.0.0.1:12345")
+zmqSend.bind("tcp://localhost:12345")
+
+def messageTrans(sock, paramDict):
+    sock.send_json(paramDict)
+    print("Sent transmission...")
+    #  Get the reply.
+    message = sock.recv()
+    print("Received reply %s " % message)
+    return message
 
 stimParams = {
     'Group' : 0,
@@ -26,26 +34,26 @@ stimParams = {
 try:
     while(True):
         stimParams['Amplitude'][0] = 1
-        zmqSend.send_json(stimParams)
+        messageTrans(zmqSend, stimParams)
         time.sleep(1)
         stimParams['Amplitude'][1] = 1
-        zmqSend.send_json(stimParams)
+        messageTrans(zmqSend, stimParams)
         time.sleep(1)
         stimParams['Frequency'] = 25
         stimParams['Amplitude'][0] = 1
-        zmqSend.send_json(stimParams)
+        messageTrans(zmqSend, stimParams)
         time.sleep(1)
         stimParams['Amplitude'][0] = 1
         stimParams['Amplitude'][1] = 1
-        zmqSend.send_json(stimParams)
+        messageTrans(zmqSend, stimParams)
         time.sleep(1)
         stimParams['Amplitude'][0] = 1
         stimParams['AddReverse'] = False
-        zmqSend.send_json(stimParams)
+        messageTrans(zmqSend, stimParams)
         time.sleep(1)
         stimParams['Frequency'] = 100
         stimParams['AddReverse'] = True
         print('Sent one loop')
 finally:
     stimParams['ForceQuit'] = True
-    zmqSend.send_json(stimParams)
+    messageTrans(zmqSend, stimParams)
