@@ -10,7 +10,7 @@ context = zmq.Context()
 
 zmqSend = context.socket(zmq.PUB)
 # The communication is made on socket 12345
-zmqSend.bind("tcp://*:12345)
+zmqSend.bind("tcp://*:12345")
 
 stimParams = {
     'Group' : 0,
