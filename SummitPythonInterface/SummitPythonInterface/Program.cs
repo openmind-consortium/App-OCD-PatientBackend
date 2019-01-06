@@ -215,6 +215,8 @@ namespace SummitPythonInterface
 
             using (SubscriberSocket stimSocket = new SubscriberSocket())
             {
+                stimSocket.Bind("tcp://*:12345");
+                stimSocket.Subscribe("");
                 // Create some standard buffers for the output values form the various inc/dec functions. 
                 APIReturnInfo bufferInfo = new APIReturnInfo();
 
