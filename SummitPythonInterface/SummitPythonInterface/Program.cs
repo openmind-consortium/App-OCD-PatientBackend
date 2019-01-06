@@ -215,7 +215,7 @@ namespace SummitPythonInterface
 
             using (SubscriberSocket stimSocket = new SubscriberSocket())
             {
-                stimSocket.Bind("tcp://*:12345");
+                stimSocket.Bind("tcp://127.0.0.1:12345");
                 stimSocket.Subscribe("");
                 // Create some standard buffers for the output values form the various inc/dec functions. 
                 APIReturnInfo bufferInfo = new APIReturnInfo();
@@ -242,26 +242,10 @@ namespace SummitPythonInterface
 
                 Console.WriteLine("Group A Prog 1 INS State: Amp = " + insStateGroupA.Programs[1].AmplitudeInMilliamps.ToString()
                     + ", PW = " + insStateGroupA.Programs[1].PulseWidthInMicroseconds.ToString()
-                    + ", Period = " + insStateGroupA.RatePeriod.ToString());
+                    + ", Rate = " + insStateGroupA.RateInHz.ToString());
 
                 // Change active group to 0
                 bufferInfo = theSummit.StimChangeActiveGroup(ActiveGroup.Group0);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-
-                // Set amplitudes to 0
-                bufferInfo = theSummit.StimChangeStepAmp(0, -insStateGroupA.Programs[0].AmplitudeInMilliamps, out currentAmp[0]);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                bufferInfo = theSummit.StimChangeStepAmp(1, -insStateGroupA.Programs[1].AmplitudeInMilliamps, out currentAmp[1]);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-
-                // Set pw's to 250
-                bufferInfo = theSummit.StimChangeStepPW(0, 250 - insStateGroupA.Programs[0].PulseWidthInMicroseconds, out currentPW[0]);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                bufferInfo = theSummit.StimChangeStepPW(1, 250 - insStateGroupA.Programs[1].PulseWidthInMicroseconds, out currentPW[1]);
-                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-
-                // Set the Stimulation Frequency to 100Hz, keep to sense friendly values
-                bufferInfo = theSummit.StimChangeStepFrequency(100 - insStateGroupA.RateInHz, true, out currentFreq);
                 Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
 
                 // Turn on therapy, if a POR reject is returned, attempt to reset it
@@ -285,6 +269,22 @@ namespace SummitPythonInterface
                 }
                 Thread.Sleep(500);
 
+                // Set amplitudes to 0
+                bufferInfo = theSummit.StimChangeStepAmp(0, -insStateGroupA.Programs[0].AmplitudeInMilliamps, out currentAmp[0]);
+                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                bufferInfo = theSummit.StimChangeStepAmp(1, -insStateGroupA.Programs[1].AmplitudeInMilliamps, out currentAmp[1]);
+                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+
+                // Set pw's to 250
+                bufferInfo = theSummit.StimChangeStepPW(0, 250 - insStateGroupA.Programs[0].PulseWidthInMicroseconds, out currentPW[0]);
+                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+                bufferInfo = theSummit.StimChangeStepPW(1, 250 - insStateGroupA.Programs[1].PulseWidthInMicroseconds, out currentPW[1]);
+                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+
+                // Set the Stimulation Frequency to 100Hz, keep to sense friendly values
+                bufferInfo = theSummit.StimChangeStepFrequency(100 - insStateGroupA.RateInHz, true, out currentFreq);
+                Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
+
                 string gotMessage;
                 
                 try
@@ -297,6 +297,7 @@ namespace SummitPythonInterface
 
                         if (gotMessage == null) //no actual message received, just the timeout being hit
                         {
+                            Console.WriteLine(" Waiting for a message...");
                             continue;
                         }
 
@@ -363,8 +364,8 @@ namespace SummitPythonInterface
         private static void theSummit_DataReceived_TD(object sender, SensingEventTD TdSenseEvent)
         {
             // Announce to console that packet was received by handler
-            Console.WriteLine("TD Packet Received, Global SeqNum:" + TdSenseEvent.Header.GlobalSequence.ToString()
-                + "; Time Generated:" + TdSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
+            //Console.WriteLine("TD Packet Received, Global SeqNum:" + TdSenseEvent.Header.GlobalSequence.ToString()
+            //   + "; Time Generated:" + TdSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
 
             // Log some information about the received packet out to file
             theSummit.LogCustomEvent(TdSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", TdSenseEvent.Header.GlobalSequence.ToString());
@@ -373,8 +374,8 @@ namespace SummitPythonInterface
         private static void theSummit_DataReceived_FFT(object sender, SensingEventFFT FftSenseEvent)
         {
             // Announce to console that packet was received by handler
-            Console.WriteLine("FFT Packet Received, Global SeqNum:" + FftSenseEvent.Header.GlobalSequence.ToString()
-                + "; Time Generated:" + FftSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
+            //Console.WriteLine("FFT Packet Received, Global SeqNum:" + FftSenseEvent.Header.GlobalSequence.ToString()
+            //    + "; Time Generated:" + FftSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
 
             // Log some information about the received packet out to file
             theSummit.LogCustomEvent(FftSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", FftSenseEvent.Header.GlobalSequence.ToString());
@@ -383,8 +384,8 @@ namespace SummitPythonInterface
         private static void theSummit_DataReceived_Power(object sender, SensingEventPower PowerSenseEvent)
         {
             // Announce to console that packet was received by handler
-            Console.WriteLine("Power Packet Received, Global SeqNum:" + PowerSenseEvent.Header.GlobalSequence.ToString()
-                + "; Time Generated:" + PowerSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
+            //Console.WriteLine("Power Packet Received, Global SeqNum:" + PowerSenseEvent.Header.GlobalSequence.ToString()
+            //    + "; Time Generated:" + PowerSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
 
             // Log some information about the received packet out to file
             theSummit.LogCustomEvent(PowerSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", PowerSenseEvent.Header.GlobalSequence.ToString());
@@ -393,8 +394,8 @@ namespace SummitPythonInterface
         private static void theSummit_DataReceived_Accel(object sender, SensingEventAccel AccelSenseEvent)
         {
             // Announce to console that packet was received by handler
-            Console.WriteLine("AccelPacket Received, Global SeqNum:" + AccelSenseEvent.Header.GlobalSequence.ToString()
-                + "; Time Generated:" + AccelSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
+            //Console.WriteLine("AccelPacket Received, Global SeqNum:" + AccelSenseEvent.Header.GlobalSequence.ToString()
+            //    + "; Time Generated:" + AccelSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
 
             // Log some information about the received packet out to file
             theSummit.LogCustomEvent(AccelSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", AccelSenseEvent.Header.GlobalSequence.ToString());
