@@ -8,7 +8,6 @@ namespace SummitPythonInterface
 {
     public class StimParams
     {
-        public int Program { get; set; }
         public int Group { get; set; }
         public IList<int> PW { get; set; }
         public int DurationInMilliseconds { get; set; }
