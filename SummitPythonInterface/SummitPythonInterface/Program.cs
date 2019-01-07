@@ -213,9 +213,10 @@ namespace SummitPythonInterface
             returnInfoBuffer = theSummit.WriteSensingEnableStreams(true, false, false, false, false, true, true, false);
             Console.WriteLine("Write Stream Config Status: " + returnInfoBuffer.Descriptor);
 
-            using (ResponseSocket stimSocket = new ResponseSocket())
+            using (SubscriberSocket stimSocket = new SubscriberSocket())
             {
                 stimSocket.Connect("tcp://192.168.4.2:12345");
+                stimSocket.SubscribeToAnyTopic();
                 // Create some standard buffers for the output values form the various inc/dec functions. 
                 APIReturnInfo bufferInfo = new APIReturnInfo();
 
@@ -305,8 +306,8 @@ namespace SummitPythonInterface
                     {
 
                         //listening for messages is blocking for 1000 ms, after which it will check if it should exit thread, and if not, listen again (have this so that this thread isn't infinitely blocking when trying to join)
-                        stimSocket.TryReceiveFrameString(TimeSpan.FromMilliseconds(1000), out gotMessage);
-                        string ack;
+                        stimSocket.TryReceiveFrameString(TimeSpan.FromMilliseconds(1500), out gotMessage);
+                        // string ack;
                         if (gotMessage == null) //no actual message received, just the timeout being hit
                         {
                             Console.WriteLine(" Waiting for a message...");
@@ -335,8 +336,8 @@ namespace SummitPythonInterface
                             if (bufferInfo.RejectCode != 0)
                             {
                                 Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
-                                ack = "Exiting due to error";
-                                stimSocket.SendFrame(ack);
+                                // ack = "Exiting due to error";
+                                // stimSocket.SendFrame(ack);
                                 breakFlag = true;
                             }
                         }
@@ -354,8 +355,8 @@ namespace SummitPythonInterface
                                 if (bufferInfo.RejectCode != 0)
                                 {
                                     Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
-                                    ack = "Exiting due to error";
-                                    stimSocket.SendFrame(ack);
+                                    // ack = "Exiting due to error";
+                                    // stimSocket.SendFrame(ack);
                                     breakFlag = true;
                                 }
                         }
@@ -377,8 +378,8 @@ namespace SummitPythonInterface
                                     if (bufferInfo.RejectCode != 0)
                                     {
                                         Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
-                                        ack = "Exiting due to error";
-                                        stimSocket.SendFrame(ack);
+                                        // ack = "Exiting due to error";
+                                        // stimSocket.SendFrame(ack);
                                         breakFlag = true;
                                     }
                             
@@ -401,8 +402,8 @@ namespace SummitPythonInterface
                                 if (bufferInfo.RejectCode != 0)
                                 {
                                     Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
-                                    ack = "Exiting due to error";
-                                    stimSocket.SendFrame(ack);
+                                    // ack = "Exiting due to error";
+                                    // stimSocket.SendFrame(ack);
                                     breakFlag = true;
                                 }
                          
@@ -411,14 +412,14 @@ namespace SummitPythonInterface
 
                         if (stimParams.ForceQuit)
                         {
-                            ack = "Exited normally";
-                            stimSocket.SendFrame(ack);
+                            // ack = "Exited normally";
+                            // stimSocket.SendFrame(ack);
                             break;
 
                         }
 
-                        ack = "Updated Stim";
-                        stimSocket.SendFrame(ack);
+                        // ack = "Updated Stim";
+                        // stimSocket.SendFrame(ack);
 
                     }
                 }
