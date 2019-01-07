@@ -466,7 +466,7 @@ namespace SummitPythonInterface
             //    + "; Time Generated:" + FftSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
 
             // Log some information about the received packet out to file
-            theSummit.LogCustomEvent(FftSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", FftSenseEvent.Header.GlobalSequence.ToString());
+            // theSummit.LogCustomEvent(FftSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", FftSenseEvent.Header.GlobalSequence.ToString());
         }
 
         private static void theSummit_DataReceived_Power(object sender, SensingEventPower PowerSenseEvent)
@@ -476,7 +476,7 @@ namespace SummitPythonInterface
             //    + "; Time Generated:" + PowerSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
 
             // Log some information about the received packet out to file
-            theSummit.LogCustomEvent(PowerSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", PowerSenseEvent.Header.GlobalSequence.ToString());
+            // theSummit.LogCustomEvent(PowerSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", PowerSenseEvent.Header.GlobalSequence.ToString());
         }
 
         private static void theSummit_DataReceived_Accel(object sender, SensingEventAccel AccelSenseEvent)
