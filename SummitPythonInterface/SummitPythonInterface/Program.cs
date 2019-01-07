@@ -330,8 +330,7 @@ namespace SummitPythonInterface
                         if (freqDelta != 0)
                         {
                             bufferInfo = theSummit.StimChangeStepFrequency(freqDelta, true, out currentFreq);
-                            if (verbose)
-                            { Console.WriteLine(" Command Status:" + bufferInfo.Descriptor); }
+                            Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                             Thread.Sleep(waitPeriod);
                             if (bufferInfo.RejectCode != 0)
                             {
@@ -342,9 +341,9 @@ namespace SummitPythonInterface
                             }
                         }
                         if (breakFlag) { break; }
-                        int adjustedWait = stimParams.DurationInMilliseconds - (int)(3 * 1000 / currentFreq) - bToothDelay;
+                        int adjustedWait = stimParams.DurationInMilliseconds - (int)(2 * 1000 / currentFreq) - bToothDelay;
                         if (adjustedWait < 0) { adjustedWait = 10; }
-                        Console.WriteLine("Adjusted wait time between trains is {0}", adjustedWait); 
+                        if (verbose) { Console.WriteLine("Adjusted wait time between trains is {0}", adjustedWait); }
                         foreach(byte i in updateOrder)
                         {
                             double deltaAmp = stimParams.Amplitude[i] - (double)currentAmp[i];
@@ -434,16 +433,12 @@ namespace SummitPythonInterface
                     theSummit.StimChangeTherapyOff(false);
 
                     // ***** Object Disposal
-                    Console.WriteLine("Stim stopped, press key to dispose Summit");
-                    Console.ReadKey();
+                    Console.WriteLine("Stim stopped, disposing Summit");
+                    //Console.ReadKey();
 
                     // Dispose SummitManager, disposing all SummitSystem objects
                     theSummitManager.Dispose();
                     Console.WriteLine("CLOSED");
-
-                    // ***** Prompt user for final keypress before closing down the program.
-                    Console.WriteLine("Press key to exit");
-                    Console.ReadKey();
                 }
             }
         }
