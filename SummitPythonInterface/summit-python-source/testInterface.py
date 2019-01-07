@@ -37,23 +37,26 @@ stimParams = {
 try:
     while(True):
         stimParams['Amplitude'][0] = 1
-        messageTrans(zmqSend, stimParams)
-        time.sleep(1)
+        message = messageTrans(zmqSend, stimParams)
+        time.sleep(2)
+        stimParams['Amplitude'][0] = 0
         stimParams['Amplitude'][1] = 1
-        messageTrans(zmqSend, stimParams)
-        time.sleep(1)
+        message = messageTrans(zmqSend, stimParams)
+        time.sleep(2)
         stimParams['Frequency'] = 25
         stimParams['Amplitude'][0] = 1
-        messageTrans(zmqSend, stimParams)
-        time.sleep(1)
+        stimParams['Amplitude'][1] = 0
+        message = messageTrans(zmqSend, stimParams)
+        time.sleep(2)
         stimParams['Amplitude'][0] = 1
         stimParams['Amplitude'][1] = 1
-        messageTrans(zmqSend, stimParams)
-        time.sleep(1)
-        stimParams['Amplitude'][0] = 1
+        message = messageTrans(zmqSend, stimParams)
+        time.sleep(2)
+        stimParams['Amplitude'][0] = 0
+        stimParams['Amplitude'][1] = 1
         stimParams['AddReverse'] = False
-        messageTrans(zmqSend, stimParams)
-        time.sleep(1)
+        message = messageTrans(zmqSend, stimParams)
+        time.sleep(2)
         stimParams['Frequency'] = 100
         stimParams['AddReverse'] = True
         print('Sent one loop')
