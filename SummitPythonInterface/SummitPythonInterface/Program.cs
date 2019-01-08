@@ -270,7 +270,7 @@ namespace SummitPythonInterface
                 Thread.Sleep(500);
 
                 int waitPeriod = 5; // wait this much after each command is sent
-                int bToothDelay = 160; // add this much wait to account for transmission delay
+                int bToothDelay = 250; // add this much wait to account for transmission delay
                 bool verbose = false;
                 try
                 {
@@ -341,7 +341,8 @@ namespace SummitPythonInterface
                             }
                         }
                         if (breakFlag) { break; }
-                        int adjustedWait = stimParams.DurationInMilliseconds - (int)(2 * 1000 / currentFreq) - bToothDelay;
+                        //int adjustedWait = stimParams.DurationInMilliseconds + (int)(2 * 1000 / currentFreq) - bToothDelay;
+                        int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay;
                         if (adjustedWait < 0) { adjustedWait = 10; }
                         if (verbose) { Console.WriteLine("Adjusted wait time between trains is {0}", adjustedWait); }
                         foreach(byte i in updateOrder)
