@@ -271,7 +271,8 @@ namespace SummitPythonInterface
 
                 int waitPeriod = 5; // wait this much after each command is sent
                 int bToothDelay = 250; // add this much wait to account for transmission delay
-                bool verbose = false;
+
+                bool verbose = true;
                 try
                 {
                     // Set amplitudes to 0
@@ -343,6 +344,7 @@ namespace SummitPythonInterface
                         if (breakFlag) { break; }
                         //int adjustedWait = stimParams.DurationInMilliseconds + (int)(2 * 1000 / currentFreq) - bToothDelay;
                         int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay;
+                        //int adjustedWait = stimParams.DurationInMilliseconds;
                         if (adjustedWait < 0) { adjustedWait = 10; }
                         if (verbose) { Console.WriteLine("Adjusted wait time between trains is {0}", adjustedWait); }
                         foreach(byte i in updateOrder)
@@ -453,7 +455,7 @@ namespace SummitPythonInterface
 
             // Log some information about the received packet out to file
 
-            theSummit.LogCustomEvent(TdSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", TdSenseEvent.Header.GlobalSequence.ToString());
+            //theSummit.LogCustomEvent(TdSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", TdSenseEvent.Header.GlobalSequence.ToString());
         }
 
         private static void theSummit_DataReceived_FFT(object sender, SensingEventFFT FftSenseEvent)
@@ -483,7 +485,7 @@ namespace SummitPythonInterface
             //    + "; Time Generated:" + AccelSenseEvent.GenerationTimeEstimate.Ticks.ToString() + "; Time Event Called:" + DateTime.Now.Ticks.ToString());
 
             // Log some information about the received packet out to file
-            theSummit.LogCustomEvent(AccelSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", AccelSenseEvent.Header.GlobalSequence.ToString());
+            // theSummit.LogCustomEvent(AccelSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", AccelSenseEvent.Header.GlobalSequence.ToString());
         }
 
         /// <summary>
