@@ -654,6 +654,7 @@ namespace SummitPythonInterface
 
                         i++;
                         Console.WriteLine("Summit Initialization: Reject Code " + connectReturn.RejectCode.ToString("X"));
+                        Console.WriteLine("Summit Initialization: " + connectReturn.Descriptor);
                     } while (theWarnings.HasFlag(ConnectReturn.InitializationError) & i < 10);
 
                     // Write out the number of times a StartInsSession was attempted with initialization errors
