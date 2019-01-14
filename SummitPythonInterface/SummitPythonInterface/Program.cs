@@ -274,7 +274,7 @@ namespace SummitPythonInterface
                 Thread.Sleep(500);
 
                 int waitPeriod = 5; // wait this much after each command is sent
-                int bToothDelay = 130; // add this much wait to160 account for transmission delay
+                int bToothDelay = 130; // add this much wait to account for transmission delay
 
                 bool verbose = false;
                 try
