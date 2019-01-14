@@ -93,7 +93,7 @@ namespace SummitPythonInterface
             // Second low pass filter also at 100Hz applied
             // High pass filter at 8.6Hz applied.
             TimeDomainChannels.Add(new TimeDomainChannel(
-                the_sample_rate,
+                TdSampleRates.Disabled,
                 TdMuxInputs.Mux0,
                 TdMuxInputs.Mux1,
                 TdEvokedResponseEnable.Standard,
@@ -109,7 +109,7 @@ namespace SummitPythonInterface
             // Second low pass filter also at 100Hz applied
             // High pass filter at 8.6Hz applied.
             TimeDomainChannels.Add(new TimeDomainChannel(
-                the_sample_rate,
+                TdSampleRates.Disabled,
                 TdMuxInputs.Mux4,
                 TdMuxInputs.Mux5,
                 TdEvokedResponseEnable.Standard,
@@ -126,8 +126,8 @@ namespace SummitPythonInterface
             // High pass filter at 8.6Hz applied.
             TimeDomainChannels.Add(new TimeDomainChannel(
                 the_sample_rate,
-                TdMuxInputs.Mux0,
-                TdMuxInputs.Mux1,
+                TdMuxInputs.Mux3,
+                TdMuxInputs.Mux4,
                 TdEvokedResponseEnable.Standard,
                 TdLpfStage1.Lpf450Hz,
                 TdLpfStage2.Lpf350Hz,
@@ -142,8 +142,8 @@ namespace SummitPythonInterface
             // High pass filter at 1.2Hz applied.
             TimeDomainChannels.Add(new TimeDomainChannel(
                 the_sample_rate,
-                TdMuxInputs.Mux4,
                 TdMuxInputs.Mux5,
+                TdMuxInputs.Mux6,
                 TdEvokedResponseEnable.Standard,
                 TdLpfStage1.Lpf450Hz,
                 TdLpfStage2.Lpf350Hz,
@@ -563,14 +563,13 @@ namespace SummitPythonInterface
         /// <returns></returns>
         private static SummitSystem SummitConnect(SummitManager theSummitManager)
         {
-            InstrumentPhysicalLayers typeOfConnection = InstrumentPhysicalLayers.Bluetooth;
+            InstrumentPhysicalLayers typeOfConnection = InstrumentPhysicalLayers.Any;
             // Bond with any CTMs plugged in over USB
             Console.WriteLine("Checking USB for unbonded CTMs. Please make sure they are powered on.");
             theSummitManager.GetUsbTelemetry();
 
             // Retrieve a list of known and bonded telemetry
             List<InstrumentInfo> knownTelemetry = theSummitManager.GetKnownTelemetry();
-
 
             // Check if any CTMs are currently bonded, poll the USB if not so that the user can be prompted to plug in a CTM over USB
             if (knownTelemetry.Count == 0)
@@ -599,7 +598,7 @@ namespace SummitPythonInterface
             {
                 // Perform the connection
                 ManagerConnectStatus connectReturn = theSummitManager.CreateSummit(out tempSummit,
-                    theSummitManager.GetKnownTelemetry()[i], typeOfConnection, 4);
+                    theSummitManager.GetKnownTelemetry()[i], typeOfConnection, 3);
 
                 // Write out the result
                 Console.WriteLine("Create Summit Result: " + connectReturn.ToString());
@@ -651,7 +650,7 @@ namespace SummitPythonInterface
                     do
                     {
                         connectReturn = tempSummit.StartInsSession(discoveredDevices[0], out theWarnings, true);
-                        if (typeOfConnection == InstrumentPhysicalLayers.USB) { Thread.Sleep(10000); }
+                        if (typeOfConnection == InstrumentPhysicalLayers.USB) { Thread.Sleep(20000); }
 
                         i++;
                         Console.WriteLine("Summit Initialization: Reject Code " + connectReturn.RejectCode.ToString("X"));
