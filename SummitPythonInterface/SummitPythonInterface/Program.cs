@@ -28,8 +28,30 @@ namespace SummitPythonInterface
         // Defining SummitSystem to be static so it can be properly accessed by sensing event handlers
         static SummitSystem theSummit;
 
+        // Create a manager
+        static SummitManager theSummitManager = new SummitManager("SummitTest");
+
         static void Main(string[] args)
         {
+            Console.CancelKeyPress += delegate {
+                // call methods to clean up
+                Console.WriteLine("Shutting down stim...");
+                try
+                {
+                    theSummit.StimChangeTherapyOff(false);
+                }
+                catch
+                {
+                    Console.WriteLine("Shutting down stim FAILED");
+                }
+                finally
+                {
+                    // Dispose SummitManager, disposing all SummitSystem objects
+                    theSummitManager.Dispose();
+                    Console.WriteLine("CLOSED");
+                }
+            };
+
             // Tell user this code is not for human use
             Console.WriteLine("Starting Summit Stimulation Adjustment Training Project");
             Console.WriteLine("Before running this training project, the RLP should be used to configure a device to have two groups - A and B - with at least one program defined.");
@@ -40,17 +62,14 @@ namespace SummitPythonInterface
             // Initialize the Summit Interface
             Console.WriteLine("Creating Summit Interface...");
 
-            // Create a manager
-            SummitManager theSummitManager = new SummitManager("SummitTest");
-
             // Connect to the INS using a function based on the Summit Connect training code.
             theSummit = SummitConnect(theSummitManager);
 
             // Check if the connection attempt was successful
             if (theSummit == null)
             {
-                Console.WriteLine("Failed to connect, press a key to close program.");
-                Console.ReadKey();
+                Console.WriteLine("Failed to connect, disponsing and closing.");
+                //Console.ReadKey();
 
                 // Dispose SummitManager, disposing all SummitSystem objects
                 theSummitManager.Dispose();
@@ -167,8 +186,8 @@ namespace SummitPythonInterface
             powerChannels.Add(new PowerChannel(12, 22, 32, 42));
             powerChannels.Add(new PowerChannel(13, 23, 33, 43));
             // Enable the calculation of the first band for every time domain channel.
-            BandEnables theBandEnables = BandEnables.Ch0Band0Enabled | BandEnables.Ch1Band0Enabled | BandEnables.Ch2Band0Enabled | BandEnables.Ch3Band0Enabled;
-
+            //BandEnables theBandEnables = BandEnables.Ch0Band0Enabled | BandEnables.Ch1Band0Enabled | BandEnables.Ch2Band0Enabled | BandEnables.Ch3Band0Enabled;
+            BandEnables theBandEnables = 0;
             // ******************* Set up the miscellaneous settings *******************
             // Disable bridging functionality
             // Stream time domain data every 50ms.
@@ -198,7 +217,8 @@ namespace SummitPythonInterface
             Console.WriteLine("Write Accel Config Status: " + returnInfoBuffer.Descriptor);
 
             // ******************* Turn on LFP, FFT, and Power Sensing Components *******************
-            returnInfoBuffer = theSummit.WriteSensingState(SenseStates.LfpSense | SenseStates.Fft | SenseStates.Power, 0x00);
+            //returnInfoBuffer = theSummit.WriteSensingState(SenseStates.LfpSense | SenseStates.Fft | SenseStates.Power, 0x00);
+            returnInfoBuffer = theSummit.WriteSensingState(SenseStates.LfpSense | 0 | 0, 0x00);
             Console.WriteLine("Write Sensing Config Status: " + returnInfoBuffer.Descriptor);
 
             // ******************* Register the data listeners *******************
@@ -649,12 +669,18 @@ namespace SummitPythonInterface
                 {
                     do
                     {
-                        connectReturn = tempSummit.StartInsSession(discoveredDevices[0], out theWarnings, true);
-                        if (typeOfConnection == InstrumentPhysicalLayers.USB) { Thread.Sleep(20000); }
+                        connectReturn = tempSummit.StartInsSession(discoveredDevices[0], out theWarnings, false);
+                        if (typeOfConnection == InstrumentPhysicalLayers.USB)
+                        {
+                            int burnCycles = 0;
+                            while (burnCycles < 10000) { burnCycles++; }
+                        }
 
                         i++;
-                        Console.WriteLine("Summit Initialization: Reject Code " + connectReturn.RejectCode.ToString("X"));
-                        Console.WriteLine("Summit Initialization: " + connectReturn.Descriptor);
+                        Console.WriteLine("StartInsSession: Reject Code: " + Convert.ToString(connectReturn.RejectCode, 2).PadLeft(8, '0'));
+                        Console.WriteLine("StartInsSession: Reject CodeType: " + connectReturn.RejectCodeType.ToString());
+                        Console.WriteLine("StartInsSession: Descriptor: " + connectReturn.Descriptor);
+                        Console.WriteLine("StartInsSession: Warnings: " + theWarnings.ToString());
                     } while (theWarnings.HasFlag(ConnectReturn.InitializationError) & i < 10);
 
                     // Write out the number of times a StartInsSession was attempted with initialization errors
