@@ -26,10 +26,12 @@ namespace SummitPythonInterface
     class Program
     {
         // Defining SummitSystem to be static so it can be properly accessed by sensing event handlers
-        static SummitSystem theSummit;
-
+        static int qSize = 200;
         // Create a manager
-        static SummitManager theSummitManager = new SummitManager("SummitTest");
+        static SummitManager theSummitManager = new SummitManager("SummitTest", qSize);
+        static bool theSummitManagerIsDisposed = false;
+        static SummitSystem theSummit;
+        static SubscriberSocket stimSocket = new SubscriberSocket();
 
         static void Main(string[] args)
         {
@@ -47,7 +49,12 @@ namespace SummitPythonInterface
                 finally
                 {
                     // Dispose SummitManager, disposing all SummitSystem objects
-                    theSummitManager.Dispose();
+                    if (!theSummitManagerIsDisposed)
+                    {
+                        theSummitManager.Dispose();
+                        theSummitManagerIsDisposed = true;
+                        stimSocket.Disconnect("tcp://192.168.4.2:12345");
+                    }
                     Console.WriteLine("CLOSED");
                 }
             };
@@ -196,7 +203,6 @@ namespace SummitPythonInterface
             miscsettings.Bridging = BridgingConfig.None;
             miscsettings.StreamingRate = StreamingFrameRate.Frame50ms;
             miscsettings.LrTriggers = LoopRecordingTriggers.None;
-
             // ******************* Write the sensing configuration to the device *******************
             // Writing the sensing configuration must occur in a specific order.
             // Time domain channels must be configured before FFT, FFT must occur before power channels
@@ -232,9 +238,7 @@ namespace SummitPythonInterface
             // Leave streaming of detector events, adaptive stim, and markers disabled
             returnInfoBuffer = theSummit.WriteSensingEnableStreams(true, false, false, false, false, true, true, false);
             Console.WriteLine("Write Stream Config Status: " + returnInfoBuffer.Descriptor);
-
-            using (SubscriberSocket stimSocket = new SubscriberSocket())
-            {
+            
                 stimSocket.Connect("tcp://192.168.4.2:12345");
                 stimSocket.SubscribeToAnyTopic();
                 // Create some standard buffers for the output values form the various inc/dec functions. 
@@ -332,6 +336,7 @@ namespace SummitPythonInterface
                     Thread.Sleep(bToothDelay);
 
                     string gotMessage;
+
                     bool breakFlag = false;
                     while (!breakFlag)
                     {
@@ -342,7 +347,14 @@ namespace SummitPythonInterface
                         if (gotMessage == null) //no actual message received, just the timeout being hit
                         {
                             Console.WriteLine(" Waiting for a message...");
-                            continue;
+                            if (theSummitManagerIsDisposed)
+                            {
+                                break;
+                            }
+                            else
+                            {
+                                continue;
+                            }
                         }
 
                         StimParams stimParams = JsonConvert.DeserializeObject<StimParams>(gotMessage);
@@ -497,14 +509,16 @@ namespace SummitPythonInterface
 
                     // ***** Object Disposal
                     Console.WriteLine("Stim stopped, disposing Summit");
-                    //Console.ReadKey();
-
                     // Dispose SummitManager, disposing all SummitSystem objects
-                    theSummitManager.Dispose();
+                    if (!theSummitManagerIsDisposed)
+                    {
+                        theSummitManager.Dispose();
+                        theSummitManagerIsDisposed = true;
+                    }
                     Console.WriteLine("CLOSED");
                 }
             }
-        }
+        
 
         // Sensing data received event handlers
         private static void theSummit_DataReceived_TD(object sender, SensingEventTD TdSenseEvent)
@@ -583,7 +597,6 @@ namespace SummitPythonInterface
         /// <returns></returns>
         private static SummitSystem SummitConnect(SummitManager theSummitManager)
         {
-            InstrumentPhysicalLayers typeOfConnection = InstrumentPhysicalLayers.Any;
             // Bond with any CTMs plugged in over USB
             Console.WriteLine("Checking USB for unbonded CTMs. Please make sure they are powered on.");
             theSummitManager.GetUsbTelemetry();
@@ -614,6 +627,8 @@ namespace SummitPythonInterface
 
             // Connect to the first CTM available, then try others if it fails
             SummitSystem tempSummit = null;
+            InstrumentPhysicalLayers typeOfConnection = InstrumentPhysicalLayers.Any;
+
             for (int i = 0; i < theSummitManager.GetKnownTelemetry().Count; i++)
             {
                 // Perform the connection
@@ -642,6 +657,27 @@ namespace SummitPythonInterface
                 // inform user that CTM was successfully connected to
                 Console.WriteLine("CTM Connection Successful!");
 
+                ConnectReturn theWarnings;
+                APIReturnInfo connectReturn;
+                DiscoveredDevice? rfDevice = null;
+                connectReturn = tempSummit.StartInsSession(rfDevice, out theWarnings, true);
+                Console.WriteLine("Attempting RF Connection to last connected INS");
+
+                if (!theWarnings.HasFlag(ConnectReturn.InitializationError))
+                {
+                    // Write out the warnings if they exist
+                    Console.WriteLine("Summit Initialization: INS connected, warnings: " + theWarnings.ToString());
+                    return tempSummit;
+                }
+                else
+                {
+                    //Medtronic.TelemetryM.InstrumentReturnCode
+                    if (typeOfConnection == InstrumentPhysicalLayers.Any) { Thread.CurrentThread.Join(20000); }
+                    Console.WriteLine("StartInsSession: Reject Code: " + Convert.ToString(connectReturn.RejectCode, 2).PadLeft(8, '0'));
+                    Console.WriteLine("StartInsSession: Reject CodeType: " + connectReturn.RejectCodeType.ToString());
+                    Console.WriteLine("StartInsSession: Descriptor: " + connectReturn.Descriptor);
+                    Console.WriteLine("StartInsSession: Warnings: " + theWarnings.ToString());
+                }
                 // Discovery INS with the connected CTM, loop until a device has been discovered
                 List<DiscoveredDevice> discoveredDevices;
                 do
@@ -662,25 +698,23 @@ namespace SummitPythonInterface
                 // We can disable ORCA annotations because this is a non-human use INS (see disclaimer)
                 // Human-use INS devices ignore the OlympusConnect disableAnnotation flag and always enable annotations.
                 // Connect to a device
-                ConnectReturn theWarnings;
-                APIReturnInfo connectReturn;
                 int i = 0;
                 try
                 {
                     do
                     {
-                        connectReturn = tempSummit.StartInsSession(discoveredDevices[0], out theWarnings, false);
-                        if (typeOfConnection == InstrumentPhysicalLayers.USB)
-                        {
-                            int burnCycles = 0;
-                            while (burnCycles < 10000) { burnCycles++; }
-                        }
-
+                        connectReturn = tempSummit.StartInsSession(discoveredDevices[0], out theWarnings, true);
+                        //Medtronic.TelemetryM.InstrumentReturnCode
                         i++;
-                        Console.WriteLine("StartInsSession: Reject Code: " + Convert.ToString(connectReturn.RejectCode, 2).PadLeft(8, '0'));
-                        Console.WriteLine("StartInsSession: Reject CodeType: " + connectReturn.RejectCodeType.ToString());
-                        Console.WriteLine("StartInsSession: Descriptor: " + connectReturn.Descriptor);
-                        Console.WriteLine("StartInsSession: Warnings: " + theWarnings.ToString());
+                        if (theWarnings.HasFlag(ConnectReturn.InitializationError))
+                        {
+                            //Medtronic.TelemetryM.InstrumentReturnCode
+                            if (typeOfConnection == InstrumentPhysicalLayers.Any) { Thread.CurrentThread.Join(20000); }
+                            Console.WriteLine("StartInsSession: Reject Code: " + Convert.ToString(connectReturn.RejectCode, 2).PadLeft(8, '0'));
+                            Console.WriteLine("StartInsSession: Reject CodeType: " + connectReturn.RejectCodeType.ToString());
+                            Console.WriteLine("StartInsSession: Descriptor: " + connectReturn.Descriptor);
+                            Console.WriteLine("StartInsSession: Warnings: " + theWarnings.ToString());
+                        }
                     } while (theWarnings.HasFlag(ConnectReturn.InitializationError) & i < 10);
 
                     // Write out the number of times a StartInsSession was attempted with initialization errors
