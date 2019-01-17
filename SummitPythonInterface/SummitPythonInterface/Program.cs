@@ -299,7 +299,7 @@ namespace SummitPythonInterface
                 //Thread.Sleep(500);
 
                 int waitPeriod = 5; // wait this much after each command is sent
-                int bToothDelay = 80; // add this much wait to account for transmission delay
+                int bToothDelay = 50; // add this much wait to account for transmission delay
 
                 bool verbose = false;
                 TimeSpan? theAverageLatency = TimeSpan.FromMilliseconds(0);
@@ -374,7 +374,7 @@ namespace SummitPythonInterface
                                 continue;
                             }
                         }
-                        //recalcLatency = true;
+                        recalcLatency = true;
                         StimParams stimParams = JsonConvert.DeserializeObject<StimParams>(gotMessage);
                         double newAmplitude = 0;
                         byte whichProgram = 0;
@@ -415,9 +415,10 @@ namespace SummitPythonInterface
                         // Turn on Stim
                         int i = (int)whichProgram;
 
-                        //int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay + (int)(1.5 * 1000 / currentFreq);
-                        //int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay;
-                        int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay + (int)(1 * 1000 / currentFreq);
+                    //int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay + (int)(1.5 * 1000 / currentFreq);
+                    //int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay;
+                        TimeSpan aveLate = (TimeSpan)theAverageLatency;
+                        int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay - (int)aveLate.TotalMilliseconds + (int)(1 * 1000 / currentFreq);
 
                         if (adjustedWait < 0) { adjustedWait = 10; }
                         if (verbose) { Console.WriteLine("Adjusted wait time between trains is {0}", adjustedWait); }
