@@ -26,11 +26,11 @@ namespace SummitPythonInterface
     class Program
     {
         // Defining SummitSystem to be static so it can be properly accessed by sensing event handlers
-        static int qSize = 300;
+        static int qSize = 200;
         // Create a manager
         static SummitManager theSummitManager = new SummitManager("SummitTest", qSize);
         static bool theSummitManagerIsDisposed = false;
-        static bool disableORCA = false;
+        static bool disableORCA = true;
         static SummitSystem theSummit;
         static SubscriberSocket stimSocket = new SubscriberSocket();
 
@@ -299,38 +299,40 @@ namespace SummitPythonInterface
                 //Thread.Sleep(500);
 
                 int waitPeriod = 5; // wait this much after each command is sent
-                int bToothDelay = 130; // add this much wait to account for transmission delay
+                int bToothDelay = 80; // add this much wait to account for transmission delay
 
                 bool verbose = false;
+                TimeSpan? theAverageLatency = TimeSpan.FromMilliseconds(0);
+                bool recalcLatency = true;
                 try
                 {
                     // Set amplitudes to 0
                     bufferInfo = theSummit.StimChangeStepAmp(0, -insStateGroupA.Programs[0].AmplitudeInMilliamps, out currentAmp[0]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                    Thread.CurrentThread.Join(waitPeriod);
-                    //Thread.Sleep(waitPeriod);
+                    //Thread.CurrentThread.Join(waitPeriod);
+                    Thread.Sleep(waitPeriod);
                     bufferInfo = theSummit.StimChangeStepAmp(1, -insStateGroupA.Programs[1].AmplitudeInMilliamps, out currentAmp[1]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                    Thread.CurrentThread.Join(waitPeriod);
-                    //Thread.Sleep(waitPeriod);
+                    //Thread.CurrentThread.Join(waitPeriod);
+                    Thread.Sleep(waitPeriod);
                     bufferInfo = theSummit.StimChangeStepAmp(2, -insStateGroupA.Programs[2].AmplitudeInMilliamps, out currentAmp[2]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                    Thread.CurrentThread.Join(waitPeriod);
-                    //Thread.Sleep(waitPeriod);
+                    //Thread.CurrentThread.Join(waitPeriod);
+                    Thread.Sleep(waitPeriod);
 
                     // Set pw's to 250
                     bufferInfo = theSummit.StimChangeStepPW(0, 250 - insStateGroupA.Programs[0].PulseWidthInMicroseconds, out currentPW[0]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                    Thread.CurrentThread.Join(waitPeriod);
-                    //Thread.Sleep(waitPeriod);
+                    //Thread.CurrentThread.Join(waitPeriod);
+                    Thread.Sleep(waitPeriod);
                     bufferInfo = theSummit.StimChangeStepPW(1, 250 - insStateGroupA.Programs[1].PulseWidthInMicroseconds, out currentPW[1]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                    Thread.CurrentThread.Join(waitPeriod);
-                    //Thread.Sleep(waitPeriod);
+                    //Thread.CurrentThread.Join(waitPeriod);
+                    Thread.Sleep(waitPeriod);
                     bufferInfo = theSummit.StimChangeStepPW(2, 250 - insStateGroupA.Programs[2].PulseWidthInMicroseconds, out currentPW[2]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                    Thread.CurrentThread.Join(waitPeriod);
-                    //Thread.Sleep(waitPeriod);
+                    //Thread.CurrentThread.Join(waitPeriod);
+                    Thread.Sleep(waitPeriod);
                     // Set the Stimulation Frequency to 100Hz, keep to sense friendly values
                     //bufferInfo = theSummit.StimChangeStepFrequency(100 - insStateGroupA.RateInHz, true, out currentFreq);
                     double freqDelta = 100 - insStateGroupA.RateInHz;
@@ -338,8 +340,8 @@ namespace SummitPythonInterface
                     {
                         bufferInfo = theSummit.StimChangeStepFrequency(freqDelta, true, out currentFreq);
                         if (verbose) { Console.WriteLine(" Command Status:" + bufferInfo.Descriptor); }
-                        //Thread.Sleep(waitPeriod);
-                        Thread.CurrentThread.Join(waitPeriod);
+                        Thread.Sleep(waitPeriod);
+                        //Thread.CurrentThread.Join(waitPeriod);
                     }
 
                     string gotMessage;
@@ -349,12 +351,20 @@ namespace SummitPythonInterface
                     {
 
                         //listening for messages is blocking for 1000 ms, after which it will check if it should exit thread, and if not, listen again (have this so that this thread isn't infinitely blocking when trying to join)
-                        stimSocket.TryReceiveFrameString(TimeSpan.FromMilliseconds(500), out gotMessage);
+                        stimSocket.TryReceiveFrameString(TimeSpan.FromMilliseconds(250), out gotMessage);
                     
                         // string ack;
+
                         if (gotMessage == null) //no actual message received, just the timeout being hit
                         {
-                            Console.WriteLine(" Waiting for a message...");
+
+                        if (recalcLatency)
+                        {
+                            bufferInfo = theSummit.CalculateLatency(10, out theAverageLatency);
+                            recalcLatency = false;
+                        }
+                            
+                            Console.WriteLine(" Waiting for a message. Average Latency = " + theAverageLatency.ToString());
                             if (theSummitManagerIsDisposed)
                             {
                                 break;
@@ -364,7 +374,7 @@ namespace SummitPythonInterface
                                 continue;
                             }
                         }
-
+                        //recalcLatency = true;
                         StimParams stimParams = JsonConvert.DeserializeObject<StimParams>(gotMessage);
                         double newAmplitude = 0;
                         byte whichProgram = 0;
@@ -384,15 +394,14 @@ namespace SummitPythonInterface
                             whichProgram = 2;
                             newAmplitude = stimParams.Amplitude[2];
                         }
-
                         // Set the Stimulation Frequency, keep to sense friendly values
                         freqDelta = stimParams.Frequency - (double)currentFreq;
                         if (freqDelta != 0)
                         {
                             bufferInfo = theSummit.StimChangeStepFrequency(freqDelta, true, out currentFreq);
                             Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
-                            Thread.CurrentThread.Join(waitPeriod);
-                            //Thread.Sleep(waitPeriod);
+                            //Thread.CurrentThread.Join(waitPeriod);
+                            Thread.Sleep(waitPeriod);
                             if (bufferInfo.RejectCode != 0)
                             {
                                 Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
@@ -406,9 +415,9 @@ namespace SummitPythonInterface
                         // Turn on Stim
                         int i = (int)whichProgram;
 
-                        //int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay + (int)(1 * 1000 / currentFreq);
+                        //int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay + (int)(1.5 * 1000 / currentFreq);
                         //int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay;
-                        int adjustedWait = stimParams.DurationInMilliseconds;
+                        int adjustedWait = stimParams.DurationInMilliseconds - bToothDelay + (int)(1 * 1000 / currentFreq);
 
                         if (adjustedWait < 0) { adjustedWait = 10; }
                         if (verbose) { Console.WriteLine("Adjusted wait time between trains is {0}", adjustedWait); }
@@ -416,21 +425,19 @@ namespace SummitPythonInterface
                         double deltaAmp = newAmplitude - (double)currentAmp[i];
                         bufferInfo = theSummit.StimChangeStepAmp(whichProgram, deltaAmp, out currentAmp[i]);
                         if (verbose) { Console.WriteLine(" Command Status:" + bufferInfo.Descriptor); }
-                        Thread.CurrentThread.Join(waitPeriod);
-                        //Thread.Sleep(waitPeriod);
+                        //Thread.CurrentThread.Join(waitPeriod);
+                        Thread.Sleep(waitPeriod);
 
                         if (bufferInfo.RejectCode != 0)
                         {
                             Console.WriteLine("Error during stim, may not function properly. Error descriptor:" + bufferInfo.Descriptor);
-                            // ack = "Exiting due to error";
-                            // stimSocket.SendFrame(ack);
                             breakFlag = true;
                         }
                         if (breakFlag) { break; }
 
                         // Let it run for the requested duration (subtract effect of having to wait for 2 pulses)
-                        Thread.CurrentThread.Join(adjustedWait);
-                        //Thread.Sleep(adjustedWait);
+                        //Thread.CurrentThread.Join(adjustedWait);
+                        Thread.Sleep(adjustedWait);
 
                         // Return amplitudes to zero, unless it's the control (controls stay on for the return leg of the movement)
                         if (whichProgram != 2)
@@ -467,8 +474,8 @@ namespace SummitPythonInterface
                             deltaAmp = newAmplitude - (double)currentAmp[i];
                             bufferInfo = theSummit.StimChangeStepAmp(whichProgram, deltaAmp, out currentAmp[i]);
                             if (verbose) { Console.WriteLine(" Command Status:" + bufferInfo.Descriptor); }
-                            Thread.CurrentThread.Join(waitPeriod);
-                            //Thread.Sleep(waitPeriod);
+                            //Thread.CurrentThread.Join(waitPeriod);
+                            Thread.Sleep(waitPeriod);
 
                             if (bufferInfo.RejectCode != 0)
                             {
@@ -482,13 +489,13 @@ namespace SummitPythonInterface
                         if (stimParams.AddReverse)
                         {
                             // Let the flipped condition run for the requested duration
-                            //Thread.Sleep(adjustedWait);
-                            Thread.CurrentThread.Join(adjustedWait);
+                            Thread.Sleep(adjustedWait);
+                            //Thread.CurrentThread.Join(adjustedWait);
 
                             // Return amplitudes to zero
                             bufferInfo = theSummit.StimChangeStepAmp(whichProgram, -(double)currentAmp[i], out currentAmp[i]);
                             if (verbose) { Console.WriteLine(" Command Status:" + bufferInfo.Descriptor); }
-                            Thread.CurrentThread.Join(waitPeriod);
+                            //Thread.CurrentThread.Join(waitPeriod);
                             Thread.Sleep(waitPeriod);
 
                             if (bufferInfo.RejectCode != 0)
