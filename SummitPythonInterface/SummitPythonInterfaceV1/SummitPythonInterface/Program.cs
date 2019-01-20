@@ -301,7 +301,7 @@ namespace SummitPythonInterface
                 int waitPeriod = 5; // wait this much after each command is sent
                 int bToothDelay = 50; // add this much wait to account for transmission delay
 
-                bool verbose = false;
+                bool verbose = true;
                 TimeSpan? theAverageLatency = TimeSpan.FromMilliseconds(0);
                 bool recalcLatency = true;
                 try
@@ -310,29 +310,29 @@ namespace SummitPythonInterface
                     bufferInfo = theSummit.StimChangeStepAmp(0, -insStateGroupA.Programs[0].AmplitudeInMilliamps, out currentAmp[0]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                     //Thread.CurrentThread.Join(waitPeriod);
-                    Thread.Sleep(waitPeriod);
+                    Thread.Sleep(2 * waitPeriod);
                     bufferInfo = theSummit.StimChangeStepAmp(1, -insStateGroupA.Programs[1].AmplitudeInMilliamps, out currentAmp[1]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                     //Thread.CurrentThread.Join(waitPeriod);
-                    Thread.Sleep(waitPeriod);
+                    Thread.Sleep(2 * waitPeriod);
                     bufferInfo = theSummit.StimChangeStepAmp(2, -insStateGroupA.Programs[2].AmplitudeInMilliamps, out currentAmp[2]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                     //Thread.CurrentThread.Join(waitPeriod);
-                    Thread.Sleep(waitPeriod);
+                    Thread.Sleep(2 * waitPeriod);
 
                     // Set pw's to 250
                     bufferInfo = theSummit.StimChangeStepPW(0, 250 - insStateGroupA.Programs[0].PulseWidthInMicroseconds, out currentPW[0]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                     //Thread.CurrentThread.Join(waitPeriod);
-                    Thread.Sleep(waitPeriod);
+                    Thread.Sleep(2 * waitPeriod);
                     bufferInfo = theSummit.StimChangeStepPW(1, 250 - insStateGroupA.Programs[1].PulseWidthInMicroseconds, out currentPW[1]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                     //Thread.CurrentThread.Join(waitPeriod);
-                    Thread.Sleep(waitPeriod);
+                    Thread.Sleep(2 * waitPeriod);
                     bufferInfo = theSummit.StimChangeStepPW(2, 250 - insStateGroupA.Programs[2].PulseWidthInMicroseconds, out currentPW[2]);
                     Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                     //Thread.CurrentThread.Join(waitPeriod);
-                    Thread.Sleep(waitPeriod);
+                    Thread.Sleep(2 * waitPeriod);
                     // Set the Stimulation Frequency to 100Hz, keep to sense friendly values
                     //bufferInfo = theSummit.StimChangeStepFrequency(100 - insStateGroupA.RateInHz, true, out currentFreq);
                     double freqDelta = 100 - insStateGroupA.RateInHz;
