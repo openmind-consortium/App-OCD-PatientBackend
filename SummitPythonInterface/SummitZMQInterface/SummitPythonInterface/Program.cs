@@ -347,8 +347,8 @@ namespace SummitPythonInterface
                             bufferInfo = theSummit.CalculateLatency(10, out theAverageLatency);
                             recalcLatency = false;
                             Console.WriteLine("Average Latency = " + theAverageLatency.ToString());
-                            Console.WriteLine(" Waiting for a message.");
                         }
+                        Console.WriteLine(" Waiting for a message.");
 
                         if (theSummitManagerIsDisposed)
                         {
@@ -360,7 +360,7 @@ namespace SummitPythonInterface
                         }
                     }
 
-                    recalcLatency = true;
+                    //recalcLatency = true;
                     StimParams stimParams = JsonConvert.DeserializeObject<StimParams>(gotMessage);
 
                     double newAmplitude = 0;
