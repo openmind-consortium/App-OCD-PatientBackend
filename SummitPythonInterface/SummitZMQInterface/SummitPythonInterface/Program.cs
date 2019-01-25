@@ -30,7 +30,7 @@ namespace SummitPythonInterface
         // Create a manager
         static SummitManager theSummitManager = new SummitManager("SummitTest", qSize);
         static bool theSummitManagerIsDisposed = false;
-        static bool disableORCA = true;
+        static bool disableORCA = false;
         static SummitSystem theSummit;
         static SubscriberSocket stimSocket = new SubscriberSocket();
 
