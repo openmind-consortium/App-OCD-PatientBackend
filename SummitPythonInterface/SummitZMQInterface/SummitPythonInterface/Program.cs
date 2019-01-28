@@ -122,9 +122,9 @@ namespace SummitPythonInterface
             // Second low pass filter also at 100Hz applied
             // High pass filter at 8.6Hz applied.
             TimeDomainChannels.Add(new TimeDomainChannel(
-                TdSampleRates.Disabled,
-                TdMuxInputs.Mux0,
+                the_sample_rate,
                 TdMuxInputs.Mux1,
+                TdMuxInputs.Mux3,
                 TdEvokedResponseEnable.Standard,
                 TdLpfStage1.Lpf450Hz,
                 TdLpfStage2.Lpf350Hz,
@@ -155,8 +155,8 @@ namespace SummitPythonInterface
             // High pass filter at 8.6Hz applied.
             TimeDomainChannels.Add(new TimeDomainChannel(
                 the_sample_rate,
+                TdMuxInputs.Mux1,
                 TdMuxInputs.Mux3,
-                TdMuxInputs.Mux4,
                 TdEvokedResponseEnable.Standard,
                 TdLpfStage1.Lpf450Hz,
                 TdLpfStage2.Lpf350Hz,
@@ -170,7 +170,7 @@ namespace SummitPythonInterface
             // Second low pass filter also at 350Hz applied
             // High pass filter at 1.2Hz applied.
             TimeDomainChannels.Add(new TimeDomainChannel(
-                the_sample_rate,
+                TdSampleRates.Disabled,
                 TdMuxInputs.Mux5,
                 TdMuxInputs.Mux6,
                 TdEvokedResponseEnable.Standard,
@@ -408,7 +408,7 @@ namespace SummitPythonInterface
 
                     double deltaAmp = newAmplitude - (double)currentAmp[index];
                     bufferInfo = theSummit.StimChangeStepAmp(whichProgram, deltaAmp, out currentAmp[index]);
-                    if (verbose) { Console.WriteLine(" Command Status:" + bufferInfo.Descriptor); }
+                    Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                     //Thread.CurrentThread.Join(waitPeriod);
                     Thread.Sleep(waitPeriod);
 
