@@ -58,7 +58,10 @@ namespace Summit_Interface
                 m_parameters = (JObject)JToken.ReadFrom(new JsonTextReader(reader));
             }
 
-            //list of all the field names (v0.1)
+            //list of all the field names (v0.2)
+            // v0.1 initial def
+            // v0.2 added stim config button to read all group and program pairs
+
             //                      Field Name                          Value type          Parent                      grandParent  has Children?  Array?  sepcific values         [lowerbound upperbound] relative array size         absolute array size
             m_allFields = new parameterField[]{
                 new parameterField("Version",                           typeof(string),     null,                       null,               false,  false,  null,                   null,                   null,                       null),
@@ -69,6 +72,7 @@ namespace Summit_Interface
                 new parameterField("NotifyOpenEphysPacketsReceived",    typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("QuitButton",                        typeof(string),     null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("StimStatusButton",                  typeof(string),     null,                       null,               false,  false,  null,                   null,                   null,                       null),
+                new parameterField("StimConfigButton",                  typeof(string),     null,                       null,               false,  false,  null,                   null,                   null,                       null),
 
                 new parameterField("Sense",                             null,               null,                       null,               true,   false,  null,                   null,                   null,                       null),
                 new parameterField("Enabled",                           typeof(bool),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),

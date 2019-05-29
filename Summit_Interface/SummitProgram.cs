@@ -736,6 +736,7 @@ namespace Summit_Interface
 
             string quitKey = parameters.GetParam("QuitButton", typeof(string));
             string stimStatusKey = parameters.GetParam("StimStatusButton", typeof(string));
+            string stimConfigKey = parameters.GetParam("StimConfigButton", typeof(string));
 
             int manualStimGroup = 0, manualStimProg = 0;
             ActiveGroup? defaultGroupActive = null;
@@ -784,6 +785,12 @@ namespace Summit_Interface
                         Console.WriteLine("Group " + manualGroupNums[manualStimGroup].Value.ToString() + ", Program " + manualStimProg.ToString() + ": Amp = " + amp.Value
                             + "mA, PW = " + pw.Value + "us, Frequency = " + freq.Value + "Hz");
                     }
+                }
+
+                //read stim setup definitions
+                if (thekey.KeyChar.ToString() == stimConfigKey)
+                {
+
                 }
 
                 //manual stim controls check
