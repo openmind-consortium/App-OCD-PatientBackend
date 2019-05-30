@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <GUIDir>$(OpenEphysSourceDir)\Builds\VisualStudio2013\Release\bin</GUIDir>
+    <PluginDir>$(GUIDir)\plugins</PluginDir>
+    <OpenEphysSourceDir>C:\Users\David\Documents\GitHub\plugin-GUI</OpenEphysSourceDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <_PropertySheetDisplayName>Plugin_Release32_SummitSource</_PropertySheetDisplayName>
+    <OutDir>$(GUIDir)\..\..\Plugins\$(ProjectName)\$(Configuration)\bin\</OutDir>
+    <IntDir>$(GUIDir)\..\..\Plugins\$(ProjectName)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(OpenEphysSourceDir)\JuceLibraryCode;$(OpenEphysSourceDir)\JuceLibraryCode\modules;$(OpenEphysSourceDir)\Source\Plugins\Headers;$(OpenEphysSourceDir)\Source\Plugins\CommonLibs;$(OpenEphysSourceDir)\Source\Plugins\SummitSource\ZMQ;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_WINSOCKAPI_;_WIN32;OEPLUGIN;WIN32;_WINDOWS;NDEBUG;JUCE_API=__declspec(dllimport);JUCER_VS2013_78A5020=1;JUCE_APP_VERSION=0.4.2;JUCE_APP_VERSION_HEX=0x402;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>false</SDLCheck>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(GUIDir);$(OutDir);$(OpenEphysSourceDir)\Source\Plugins\SummitSource\ZMQ</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libzmq-v120-mt-4_0_4_x86.lib;open-ephys.lib;setupapi.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(OutDir)$(TargetFileName)" "$(PluginDir)\"</Command>
+    </PostBuildEvent>
+    <PreLinkEvent>
+      <Command>if not exist "$(PluginDir)" mkdir "$(PluginDir)"</Command>
+    </PreLinkEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <BuildMacro Include="GUIDir">
+      <Value>$(GUIDir)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PluginDir">
+      <Value>$(PluginDir)</Value>
+    </BuildMacro>
+    <BuildMacro Include="OpenEphysSourceDir">
+      <Value>$(OpenEphysSourceDir)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,26 @@
+If using visual studio, add:
+
+_WINSOCKAPI_;_WIN32;
+
+to preprocessor definitions,
+
+
+add:
+
+..\..\..\..\..\BortonPlugins\bnml-oegui-plugins\SummitStimSink\ZMQ
+
+to Linker Additional Library Directories,
+
+
+add:
+
+libzmq.lib;libzmq-v120-mt-4_0_4.lib;libzmq-v120-mt-gd-4_0_4.lib;
+
+to Linker Additional Dependencies
+
+
+and add:
+
+copy /Y "$(OutDir)$(TargetFileName)" "$(PluginDir)\" & for /R "..\..\..\..\..\BortonPlugins\bnml-oegui-plugins\SummitStimSink\ZMQ" %%F in (*.dll) do copy "%%F" "$(GUIDir)\"
+
+to Post-Build Events.
