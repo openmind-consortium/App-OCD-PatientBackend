@@ -154,11 +154,7 @@ The [INSParameters class](https://github.com/neuromotion/summit-interface-borton
 * __arraySizeDependancy__ indicates (when the value is an array) when the size of the array must be a certain value, and that value is defined by a key-value pair elsewhere in the JSON file (e.g. the number of sense Anodes must be equal to the number of sense channels)  
 * __manualArraySize__ indicates (when the value is an array) the the set size of the array
 
-<<<<<<< HEAD
 The JSON schema I've defined for use with the SIP is hard coded at the the top of the [INSParameters.cs](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/INSParameters.cs) file. To add custom keys, one can simply put in a new entry to the array with the custom `parameterField` fields defined. 
-=======
-The JSON schema I've defined for use with the SIP is hard coded at the the top of the [INSParameters.cs](https://github.com/neuromotion/medtronic-brown-smi/blob/master/BSI_Controller_Software/Summit_Interface/Summit_Interface/INSParameters.cs) file. To add custom keys, one can simply put in a new entry to the array with the custom `parameterField` fields defined.
->>>>>>> f8d4f3235f5f89d80873493e5928fd689998d273
 
 To add custom sets of specific values, one can add a `specificValuesGeneric` to the `m_fieldSpecificValues` list.
 
