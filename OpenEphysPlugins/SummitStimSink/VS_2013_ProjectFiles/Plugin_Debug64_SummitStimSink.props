@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <OpenEphysSourceDir>D:\GithubRepos\plugin-GUI</OpenEphysSourceDir>
+    <GUIDir>$(OpenEphysSourceDir)\Builds\VisualStudio2013\x64\Debug64\bin</GUIDir>
+    <PluginDir>$(GUIDir)\plugins</PluginDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <_PropertySheetDisplayName>Plugin_Debug64_SummitStimSink</_PropertySheetDisplayName>
+    <OutDir>$(GUIDir)\..\..\..\Plugins\$(ProjectName)\$(Platform)\$(Configuration)\bin\</OutDir>
+    <IntDir>$(GUIDir)\..\..\..\Plugins\$(ProjectName)\$(Platform)\$(Configuration)\bin\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(OpenEphysSourceDir)\JuceLibraryCode;$(OpenEphysSourceDir)\JuceLibraryCode\modules;$(OpenEphysSourceDir)\Source\Plugins\Headers;$(OpenEphysSourceDir)\Source\Plugins\CommonLibs;$(OpenEphysSourceDir)\Source\Plugins\SummitStimSink\ZMQ;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_WINSOCKAPI_;_WIN32;OEPLUGIN;WIN32;_WINDOWS;DEBUG;_DEBUG;JUCE_API=__declspec(dllimport);JUCER_VS2013_78A5020=1;JUCE_APP_VERSION=0.4.2;JUCE_APP_VERSION_HEX=0x402;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>false</SDLCheck>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(GUIDir);$(OutDir);$(OpenEphysSourceDir)\Source\Plugins\SummitStimSink\ZMQ</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libzmq-v120-mt-gd-4_0_4.lib;open-ephys.lib;setupapi.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreLinkEvent>
+      <Command>if not exist "$(PluginDir)" mkdir "$(PluginDir)"</Command>
+    </PreLinkEvent>
+    <PostBuildEvent>
+      <Command>copy /Y "$(OutDir)$(TargetFileName)" "$(PluginDir)\"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <BuildMacro Include="OpenEphysSourceDir">
+      <Value>$(OpenEphysSourceDir)</Value>
+    </BuildMacro>
+    <BuildMacro Include="GUIDir">
+      <Value>$(GUIDir)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PluginDir">
+      <Value>$(PluginDir)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

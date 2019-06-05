@@ -43,7 +43,6 @@ SummitStimSink::SummitStimSink()
 	//context = zmq_ctx_new();
 	//socket(context, ZMQ_SUB);
 	m_inputChan = 0;
-	settings.sampleRate = 30000;
 	m_loop = 0;
 	m_socket.connect("tcp://localhost:12345");
 
@@ -96,8 +95,7 @@ void SummitStimSink::setParameter(int parameterIndex, float newValue)
     editor->updateParameterButtons(parameterIndex);
 }
 
-void SummitStimSink::process(AudioSampleBuffer& buffer,
-                               MidiBuffer& events)
+void SummitStimSink::process(AudioSampleBuffer& buffer)
 {
 	/**
 	Generic structure for processing buffer data 
@@ -211,15 +209,15 @@ bool SummitStimSink::enable()
 	//before start closed loop, set the input channels and output channel
 	int nAUXInputs = 0;
 	int nHEADInputs = 0;
-	for (int iChan = 0; iChan < channels.size(); iChan++)
+	for (int iChan = 0; iChan < dataChannelArray.size(); iChan++)
 	{
-		if (channels[iChan]->getType() == AUX_CHANNEL)
+		if (dataChannelArray[iChan]->getChannelType() == DataChannel::AUX_CHANNEL)
 		{
 			m_AUXChannels.push_back(iChan);
 			nAUXInputs++;
 		}
 
-		if (channels[iChan]->getType() == HEADSTAGE_CHANNEL)
+		if (dataChannelArray[iChan]->getChannelType() == DataChannel::HEADSTAGE_CHANNEL)
 		{
 			m_HEADChannels.push_back(iChan);
 			nHEADInputs++;
