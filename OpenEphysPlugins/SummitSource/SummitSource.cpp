@@ -38,7 +38,8 @@ SummitSource::SummitSource()
 	//Without a custom editor, generic parameter controls can be added
     //parameters.add(Parameter("thresh", 0.0, 500.0, 200.0, 0));
 
-	settings.sampleRate = 30000;
+	setProcessorType(PROCESSOR_TYPE_SOURCE);
+
 	nFeatureChans = 15;
 
 	socket.connect("tcp://localhost:5555");
@@ -58,7 +59,7 @@ SummitSource::SummitSource()
 
 SummitSource::~SummitSource()
 {
-	delete[] chanMeans;
+
 	debugFile.close();
 
 	//deallocate memory
@@ -103,16 +104,31 @@ void SummitSource::setParameter(int parameterIndex, float newValue)
     editor->updateParameterButtons(parameterIndex);
 }
 
-void SummitSource::process(AudioSampleBuffer& buffer,
-                               MidiBuffer& events)
+int SummitSource::getDefaultNumDataOutputs(DataChannel::DataChannelTypes type, int subProcessorIdx) const
+{
+	if (subProcessorIdx == 0)
+	{
+		switch (type)
+		{
+		case DataChannel::HEADSTAGE_CHANNEL:
+			return 4;
+		case DataChannel::ADC_CHANNEL:
+			return 0;
+		case DataChannel::AUX_CHANNEL:
+			return 0;
+		}
+	}
+}
+
+void SummitSource::process(AudioSampleBuffer& buffer)
 {
 	/**
-	Generic structure for processing buffer data 
+	Generic structure for processing buffer data
 	*/
 
-	//
+	
 	//zmq::message_t request;
-	//  Wait for next request from client
+	////Wait for next request from client
 	//socket.recv(&request);
 	//std::string mesData(reinterpret_cast<char*>(request.data()),request.size());
 
@@ -128,7 +144,6 @@ void SummitSource::process(AudioSampleBuffer& buffer,
 	m_profilingFile << std::to_string(m_loop) << " ";
 #endif
 
-
 	//ask for data with ZMQ
 	m_start_time = std::chrono::high_resolution_clock::now();
 
@@ -140,10 +155,10 @@ void SummitSource::process(AudioSampleBuffer& buffer,
 	socket.recv(&reply);
 
 	m_end_time = std::chrono::high_resolution_clock::now();
-#ifdef PRINT_PROFILING
+	#ifdef PRINT_PROFILING
 	m_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(m_end_time - m_start_time).count();
 	m_profilingFile << std::to_string(m_elapsed) << " ";
-#endif
+	#endif
 
 
 	//deserialize data from ZMQ socket to data arrays
@@ -153,35 +168,21 @@ void SummitSource::process(AudioSampleBuffer& buffer,
 	deserialize(INSData, packetNumbers, packetLength, &reply);
 	if (m_packetNumPrev - packetNumbers[0] > 1)
 	{
-		m_sampleCounter += m_packetDropSize*(m_packetNumPrev - packetNumbers[0] - 1);
+	m_sampleCounter += m_packetDropSize*(m_packetNumPrev - packetNumbers[0] - 1);
 	}
 	else
 	{
-		m_sampleCounter += packetLength;
+	m_sampleCounter += packetLength;
 	}
 
 	m_end_time = std::chrono::high_resolution_clock::now();
-#ifdef PRINT_PROFILING
+	#ifdef PRINT_PROFILING
 	m_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(m_end_time - m_start_time).count();
 	m_profilingFile << std::to_string(m_elapsed) << " ";
-#endif
+	#endif
 
 
 	int nChannels = buffer.getNumChannels();
-
-	//Temporarily for now, subtract the values of all the channels at the begining to center the data to zero.
-	if (m_loop == 0)
-	{
-		for (int iChan = 0; iChan < nChans; iChan++)
-		{
-			chanMeans[iChan] = 0;
-			for (int iSample = 0; iSample < packetLength; iSample++)
-			{
-				chanMeans[iChan] += INSData[iChan][iSample];
-			}
-			chanMeans[iChan] /= packetLength;
-		}
-	}
 
 	//// write samples to file
 	//if (packetLength == 0)
@@ -208,7 +209,7 @@ void SummitSource::process(AudioSampleBuffer& buffer,
 
 	//now fill the channels (raw data for headstage channels, features for aux channels
 	m_start_time = std::chrono::high_resolution_clock::now();
-	
+
 	int iHeadstage = 0;
 
 	int iChanHist = 0;
@@ -217,21 +218,21 @@ void SummitSource::process(AudioSampleBuffer& buffer,
 
 	if (packetLength != 0)
 	{
-		debugFile << std::to_string(packetNumbers[0]) << " ";
-		debugFile << std::to_string(m_sampleCounter) << " ";
+	debugFile << std::to_string(packetNumbers[0]) << " ";
+	debugFile << std::to_string(m_sampleCounter) << " ";
 	}
 
-	for (int iChan = 0; iChan < channels.size(); iChan++)
+	for (int iChan = 0; iChan < dataChannelArray.size(); iChan++)
 	{
 		float* samplePtr = buffer.getWritePointer(iChan, 0);
 
-		switch (channels[iChan]->getType())
+		switch (dataChannelArray[iChan]->getChannelType())
 		{
-		
-		case HEADSTAGE_CHANNEL:
+
+		case DataChannel::HEADSTAGE_CHANNEL:
 		{
 			//saved all our data channels already
-			if (iHeadstage > nChans-1)
+			if (iHeadstage > nChans - 1)
 			{
 				break;
 			}
@@ -239,17 +240,17 @@ void SummitSource::process(AudioSampleBuffer& buffer,
 			//add next data channel to headstage output channel
 			for (int iSample = 0; iSample < packetLength; iSample++)
 			{
-				*(samplePtr + iSample) = INSData[iChan][iSample] * 1000 -chanMeans[iHeadstage];
+				*(samplePtr + iSample) = INSData[iChan][iSample] * 1000;
 			}
 			iHeadstage++;
 
 			break;
 		}
 
-		case AUX_CHANNEL:
+		case DataChannel::AUX_CHANNEL:
 		{
 			//Theres no more data to use for history, just send what we have
-			if (iHist > packetLength-1)
+			if (iHist > packetLength - 1)
 			{
 				for (int iSample = 0; iSample < packetLength; iSample++)
 				{
@@ -293,14 +294,15 @@ void SummitSource::process(AudioSampleBuffer& buffer,
 	}
 
 	m_end_time = std::chrono::high_resolution_clock::now();
-#ifdef PRINT_PROFILING
+	#ifdef PRINT_PROFILING
 	m_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(m_end_time - m_start_time).count();
 	m_profilingFile << std::to_string(m_elapsed) << std::endl;
-#endif
+	#endif
 
-	setNumSamples(events, packetLength);
-	
+	setTimestampAndSamples(getTimestamp(0), packetLength);
+
 	m_loop++;
+
 }
 
 bool SummitSource::enable()
@@ -318,8 +320,6 @@ bool SummitSource::enable()
 
 	nChans = dataBytes[0];
 	INSBufferSize = dataBytes[1];
-	chanMeans = new float[nChans];
-
 	
 	//allocate memory
 	INSData = new float*[nChans];
@@ -336,6 +336,7 @@ bool SummitSource::enable()
 	return true;
 
 	setAllChannelsToRecord();
+
 }
 
 //get ZMQ message as data
@@ -408,17 +409,13 @@ void SummitSource::deserialize(float** data, int* packNums, int &length, zmq::me
 	delete[] doubleArray;
 }
 
-float SummitSource::getSampleRate()
+
+float SummitSource::getSampleRate(int subProcessorIdx) const
 {
 	return 500.0f;
 }
 
-int SummitSource::getNumHeadstageOutputs()
+int SummitSource::getNumOutputs() const
 {
 	return 4;
-}
-
-int SummitSource::getNumAuxOutputs()
-{
-	return 20;
 }

@@ -89,12 +89,12 @@ public:
         Continuous signals arrive in the "buffer" variable, event data (such as TTLs
         and spikes) is contained in the "events" variable.
          */
-    void process(AudioSampleBuffer& buffer, MidiBuffer& events);
+	void process(AudioSampleBuffer& buffer) override;
 
     /** The method that standard controls on the editor will call.
 		It is recommended that any variables used by the "process" function 
 		are modified only through this method while data acquisition is active. */
-    void setParameter(int parameterIndex, float newValue);
+	void setParameter(int parameterIndex, float newValue) override;
 
 	/** Optional method called every time the signal chain is refreshed or changed in any way.
 		
@@ -105,12 +105,10 @@ public:
 	*/
 	//void updateSettings();
 
-
-	virtual int getNumHeadstageOutputs();
-	virtual int getNumAuxOutputs();
-	virtual float getSampleRate();
-	virtual bool enable();
-
+	int getNumOutputs() const override;
+	float getSampleRate(int subProcessorIdx = 0) const override;
+	bool enable() override;
+	int getDefaultNumDataOutputs(DataChannel::DataChannelTypes type, int subProcessorIdx = 0) const override;
 
 private:
 
@@ -131,7 +129,6 @@ private:
 	int nFeatureChans;
 	int nChans;
 	int INSBufferSize;
-	float* chanMeans;
 	int m_loop;
 	int m_featuresHistory;
 	int m_sampleCounter;
