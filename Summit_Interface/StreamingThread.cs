@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.IO;
+using System.Windows.Forms;
 
 using Medtronic.SummitAPI.Classes;
 using Medtronic.SummitAPI.Events;
@@ -17,11 +19,14 @@ using Medtronic.NeuroStim.Olympus.DataTypes.DeviceManagement;
 
 using NetMQ;
 using NetMQ.Sockets;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Schema;
 
 namespace Summit_Interface
 {
     //enum of the different tasks for the threads
-    enum ThreadType { sense, stim, dataSave };
+    enum ThreadType { sense, stim, dataSave, myRCS };
 
     //Structure holding all the things we want to pass between threads (Make sure all of these are thread safe!)
     struct ThreadResources
@@ -63,6 +68,10 @@ namespace Summit_Interface
                     break;
                 case ThreadType.dataSave:
                     m_thread = new Thread(new ParameterizedThreadStart(SaveData));
+                    break;
+                case ThreadType.myRCS:
+                    m_thread = new Thread(new ParameterizedThreadStart(MyRCS));
+                    m_thread.SetApartmentState(ApartmentState.STA);
                     break;
             }
         }
@@ -352,6 +361,225 @@ namespace Summit_Interface
             }
         }
 
+        public void MyRCS(object input)
+        {
+            //cast to get the shared resources
+            ThreadResources resources = (ThreadResources)input;
+
+            using (ResponseSocket myRCSSocket = new ResponseSocket())
+            {
+                myRCSSocket.Bind("tcp://localhost:5556");
+
+                //load in the JSON schema for the messages
+                OpenFileDialog schemaFileDialog = new OpenFileDialog();
+                schemaFileDialog.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
+                schemaFileDialog.FilterIndex = 0;
+                schemaFileDialog.RestoreDirectory = true;
+                schemaFileDialog.Multiselect = false;
+                schemaFileDialog.Title = "Select JSON schema file";
+                string schemaFileName;
+                if (schemaFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    schemaFileName = schemaFileDialog.FileName;
+                }
+                else
+                {
+                    Console.WriteLine("Error: unable to read schema file");
+                    Console.WriteLine("Press 'q' to quit.");
+                    Console.ReadKey();
+                    Thread.Sleep(500);
+                    return;
+                }
+
+                JSchema messageSchema;
+                using (StreamReader schemaFile = File.OpenText(schemaFileName))
+                using (JsonTextReader reader = new JsonTextReader(schemaFile))
+                {
+                    messageSchema = JSchema.Load(reader);
+                }
+
+                //Wait for data request from myRC+S
+                string requestMessage;
+
+                while (true)
+                {
+                    if (m_stopped == true) { Thread.Sleep(500); break; }
+
+                    //listening for messages is blocking for 1000 ms, after which it will check if it should exit thread, and if not, listen again (have this so that this thread isn't infinitely blocking when trying to join)
+                    myRCSSocket.TryReceiveFrameString(TimeSpan.FromMilliseconds(1000), out requestMessage);
+                    if (requestMessage == null)//not actual message received, just the timeout being hit
+                    {
+                        continue;
+                    }
+
+                    //check that the received message validates against the schema
+                    JObject requestMsgObj = JObject.Parse(requestMessage);
+
+                    bool msgValid = requestMsgObj.IsValid(messageSchema);
+
+                    if (msgValid)
+                    {
+                        //deserialize message
+                        MyRCSMsg receivedMsg = JsonConvert.DeserializeObject<MyRCSMsg>(requestMessage);
+
+                        //log time received to timing file
+                        string timestamp = DateTime.Now.Ticks.ToString();
+                        resources.timingLogFile.WriteLine(receivedMsg.message + " " + timestamp);
+
+                        //determine what message it is
+                        switch (receivedMsg.message)
+                        {
+                            case "battery":
+                                //read battery level from INS
+
+                                //temp: for testing, load in a response from a JSON file
+                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                {
+                                    continue;
+                                }
+                                break;
+
+                            case "sense-status":
+                                //read sense status from INS
+
+                                //temp: for testing, load in a response from a JSON file
+                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                {
+                                    continue;
+                                }
+                                break;
+
+                            case "stim-status":
+                                //read stim status from INS
+
+                                //temp: for testing, load in a response from a JSON file
+                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                {
+                                    continue;
+                                }
+                                break;
+
+                            case "sense-on":
+                                //turn sensing on
+
+                                //send result of command back
+
+                                //temp: for testing, load in a response from a JSON file
+                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                {
+                                    continue;
+                                }
+                                break;
+
+                            case "sense-off":
+                                //turn sensing off
+
+                                //send result of command back
+
+                                //temp: for testing, load in a response from a JSON file
+                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                {
+                                    continue;
+                                }
+                                break;
+
+                            case "stim-on":
+                                //turn stim on
+
+                                //send result of command back
+
+                                //temp: for testing, load in a response from a JSON file
+                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                {
+                                    continue;
+                                }
+                                break;
+
+                            case "stim-off":
+                                //turn stim off
+
+                                //send result of command back
+
+                                //temp: for testing, load in a response from a JSON file
+                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                {
+                                    continue;
+                                }
+                                break;
+
+                        }
+
+                    }
+                    else
+                    {
+                        //message not valid, post error on console and don't respond to the request
+                        Console.WriteLine("Error: received JSON message from MyRC+S that doesn't conform to schema!");
+                        continue;
+                    }
+
+                }
+
+                myRCSSocket.Dispose();
+            }
+
+            NetMQConfig.Cleanup();
+
+        }
+
+        public bool testResponse(string responseType, JSchema messageSchema, ResponseSocket myRCSSocket)
+        {
+
+            //load in response message
+            OpenFileDialog responseFileDialog = new OpenFileDialog();
+            responseFileDialog.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
+            responseFileDialog.FilterIndex = 0;
+            responseFileDialog.RestoreDirectory = true;
+            responseFileDialog.Multiselect = false;
+            responseFileDialog.Title = "Select JSON response message file for " + responseType;
+            string responseFileName;
+            if (responseFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                responseFileName = responseFileDialog.FileName;
+            }
+            else
+            {
+                Console.WriteLine("Error: unable to read response message file, not sending response");
+                return false;
+            }
+
+            string responseMsgText = File.ReadAllText(responseFileName);
+            JObject testMsgObj = JObject.Parse(responseMsgText);
+
+            if (testMsgObj.IsValid(messageSchema))
+            {
+                myRCSSocket.SendFrame(responseMsgText);
+                return true;
+            }
+            else
+            {
+                Console.WriteLine("Error: response message, does not conform to the schema, not sending response");
+                return false;
+            }
+
+        }
+
+        public class MyRCSMsg
+        {
+            public string message_type { get; set; }
+            public string message { get; set; }
+            public Payload payload { get; set; }
+
+            public class Payload
+            {
+                public bool success { get; set; }
+                public UInt16 error_code { get; set; }
+                public string error_message { get; set; }
+                public UInt16 battery_level { get; set; }
+                public bool sense_on { get; set; }
+                public bool stim_on { get; set; }
+            }
+
+        }
 
         //
 

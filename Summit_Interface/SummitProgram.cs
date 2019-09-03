@@ -72,6 +72,7 @@ namespace Summit_Interface
             Console.ReadKey();
             Console.WriteLine("");
 
+            /*
             //First, load in parameters from JSON file
             OpenFileDialog parametersFileDialog = new OpenFileDialog();
             parametersFileDialog.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
@@ -727,6 +728,19 @@ namespace Summit_Interface
             }
             m_summit.UnexpectedLinkStatusHandler += SummitLinkStatusReceived;
 
+            */
+            //temporary code to run MyRC+S connection thread
+            ThreadResources sharedResources = new ThreadResources();
+            sharedResources.TDbuffer = m_TDBuffer;
+            sharedResources.savingBuffer = m_dataSavingBuffer;
+            sharedResources.summit = m_summit;
+            sharedResources.saveDataFileName = m_dataFileName;
+            sharedResources.samplingRate = TdSampleRates.Disabled;
+            m_timingLogFile = new ThreadsafeFileStream("Testing-Timing.txt");
+            sharedResources.timingLogFile = m_timingLogFile;
+            sharedResources.parameters = parameters;
+            StreamingThread myRCSThread = new StreamingThread(ThreadType.myRCS);
+            myRCSThread.StartThread(ref sharedResources);
 
             ////Start stim control (user control)=============================================
             Console.WriteLine();
@@ -734,6 +748,8 @@ namespace Summit_Interface
             Console.WriteLine();
             ConsoleKeyInfo thekey = Console.ReadKey();
 
+            string quitKey = "q";
+            /*
             string quitKey = parameters.GetParam("QuitButton", typeof(string));
             string stimStatusKey = parameters.GetParam("StimStatusButton", typeof(string));
             string stimConfigKey = parameters.GetParam("StimConfigButton", typeof(string));
@@ -773,8 +789,11 @@ namespace Summit_Interface
             bool stimCurrentlyOn = false; //indicates if stim is on
 
             APIReturnInfo bufferInfo = new APIReturnInfo();
+
+            */
             while (thekey.KeyChar.ToString() != quitKey)
             {
+                /*
                 //interragate stim status
                 if(thekey.KeyChar.ToString() == stimStatusKey && doStim)
                 {
@@ -1045,12 +1064,14 @@ namespace Summit_Interface
                 Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                 bufferInfo = new APIReturnInfo();
 
+                */
                 thekey = Console.ReadKey(true);
 
             }
 
             ////Close and cleaning up======================================================
             // stop threads
+            /*
             if (streamToOpenEphys)
             {
                 sendSenseThread.StopThread();
@@ -1078,6 +1099,10 @@ namespace Summit_Interface
             theSummitManager.Dispose();
             m_debugFile.closeFile();
             m_timingLogFile.closeFile();
+
+            */
+            // Stop MyRC+S thread
+            myRCSThread.StopThread();
 
             // Prompt user for final keypress before closing down the program.
             Console.WriteLine("Press key to exit");

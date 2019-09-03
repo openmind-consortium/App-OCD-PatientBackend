@@ -1,0 +1,250 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Patient-facing/summit-interface data passing schema",
+  "description": "v0.02",
+  "examples": [
+    
+    {
+      "message_type": "get",
+      "message": "battery"
+    },
+
+    {
+      "message_type": "post",
+      "message": "stim-on"
+    },
+
+    {
+      "message_type": "result",
+      "message": "stim-status",
+      "payload": {
+        "stim-on": true
+      }
+    },
+
+    {
+      "message_type": "result",
+      "message": "sense-off",
+      "payload": {
+        "success": true
+      }
+    },
+
+    {
+      "message_type": "result",
+      "message": "stim-on",
+      "payload": {
+        "success": false,
+        "error-code": 1,
+        "error-message": "Not enough battery"
+      }
+    }
+
+  ],
+
+  "definitions": {
+
+    "command-result": {
+      "description": "object that is returned in 'payload' when sense/stim is turned on/off",
+      "type": "object",
+      "properties": {
+
+        "success": {
+          "description": "whether the command was successfully executed on the INS or not",
+          "type": "boolean"
+        }
+        
+      },
+
+      "if": {
+        "properties": { "success": {"const": false} }
+      },
+
+      "then": {
+        "properties": {
+
+          "error_code": {
+            "description": "If it wasn't successfully executed, this is the error code",
+            "type": "integer",
+            "minimum": 0
+          },
+
+          "error_message": {
+            "description": "If it wasn't successfully executed, this is a short description of the error",
+            "type": "string"
+          }
+
+        },
+        "required": [ "error_code", "error_message"]
+      },
+
+      "required": ["success"]
+    }
+
+  },
+
+  "type": "object",
+  "properties": {
+
+    "message_type": {
+      "description": "What type of message this is (e.g. status request, or stim/sense change to the summit interface program, or, a request/change result message from the summit interface program",
+      "type": "string",
+      "enum": ["get", "post", "result"]
+    },
+
+    "message": {
+      "description": "The specific request/command/result",
+      "type": "string",
+      "enum": ["battery", "sense-status", "stim-status", "sense-on", "sense-off", "stim-on", "stim-off"]
+    }
+  },
+
+  "if": {
+    "properties": { "message_type": {"const": "result"} } 
+  },
+
+  "then": {
+
+    "allOf" : [
+
+      {"if": {
+        "properties": { "message": {"const": "battery"} }
+      },
+
+      "then": {
+        "properties": {
+
+          "payload": {
+            "description": "For battery status requests, use this payload structure",
+            "type": "object",
+            "properties": {
+
+              "battery_level": {
+                "description": "float containing the battery level from 0-100%",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+
+              }
+            },
+            "required": ["battery_level"]
+
+          }
+        }
+      } },
+
+      {"if": {
+        "properties": { "message": {"const": "sense-status"} }
+      },
+
+      "then": {
+        "properties": {
+
+          "payload": {
+            "description": "For sense status requests, use this payload structure",
+            "type": "object",
+            "properties": {
+
+              "sense_on": {
+                "description": "Whether sensing is turned on or not",
+                "type": "boolean"
+              }
+
+            },
+            "required": ["sense_on"]
+          }
+
+        }
+      } },
+
+      {"if": {
+        "properties": { "message": {"const": "stim-status"} }
+      },
+
+      "then": {
+        "properties": {
+          
+          "payload": {
+            "description": "For stim status requests, use this payload structure",
+            "type": "object",
+            "properties": {
+
+              "stim_on": {
+                "description": "Whether stim is turned on or not",
+                "type": "boolean"
+              }
+
+            },
+            "required": ["stim_on"]
+          }
+
+        }
+      } },
+
+      {"if": {
+        "properties": { "message": {"const": "sense-on"} }
+      },
+
+      "then": {
+        "properties": {
+
+          "payload": {
+            "description": "Payload structure for the result of a command to turn sensing on",
+            "$ref": "#/definitions/command-result"
+          }
+
+        }
+      } },
+
+      {"if": {
+        "properties": { "message": {"const": "sense-off"} }
+      },
+
+      "then": {
+        "properties": {
+
+          "payload": {
+            "description": "Payload structure for the result of a command to turn sensing off",
+            "$ref": "#/definitions/command-result"
+          }
+
+        }
+      } },
+
+      {"if": {
+        "properties": { "message": {"const": "stim-on"} }
+      },
+
+      "then": {
+        "properties": {
+
+          "payload": {
+            "description": "Payload structure for the result of a command to turn stim on",
+            "$ref": "#/definitions/command-result"
+          }
+
+        }
+      } },
+
+      {"if": {
+        "properties": { "message": {"const": "stim-off"} }
+      },
+
+      "then": {
+        "properties": {
+
+          "payload": {
+            "description": "Payload structure for the result of a command to turn stim off",
+            "$ref": "#/definitions/command-result"
+          }
+
+        }
+      } },
+    ],
+
+    "required": ["payload"]
+  }, 
+
+  "required": ["message_type","message"]
+
+}
