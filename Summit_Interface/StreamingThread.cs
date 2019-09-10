@@ -366,29 +366,42 @@ namespace Summit_Interface
             //cast to get the shared resources
             ThreadResources resources = (ThreadResources)input;
 
+            //option to use custom loaded return message
+            bool loadReturnMsg = false; //set to false, instead use a set of hard-coded predefined messages
+
+            //random number generator for test responses
+            Random random = new Random();
+
             using (ResponseSocket myRCSSocket = new ResponseSocket())
             {
                 myRCSSocket.Bind("tcp://localhost:5556");
 
                 //load in the JSON schema for the messages
-                OpenFileDialog schemaFileDialog = new OpenFileDialog();
-                schemaFileDialog.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
-                schemaFileDialog.FilterIndex = 0;
-                schemaFileDialog.RestoreDirectory = true;
-                schemaFileDialog.Multiselect = false;
-                schemaFileDialog.Title = "Select JSON schema file";
                 string schemaFileName;
-                if (schemaFileDialog.ShowDialog() == DialogResult.OK)
+                if (File.Exists("../../../../JSONFiles/OCD_Schema.json"))
                 {
-                    schemaFileName = schemaFileDialog.FileName;
+                    schemaFileName = "../../../../JSONFiles/OCD_Schema.json";
                 }
                 else
                 {
-                    Console.WriteLine("Error: unable to read schema file");
-                    Console.WriteLine("Press 'q' to quit.");
-                    Console.ReadKey();
-                    Thread.Sleep(500);
-                    return;
+                    OpenFileDialog schemaFileDialog = new OpenFileDialog();
+                    schemaFileDialog.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
+                    schemaFileDialog.FilterIndex = 0;
+                    schemaFileDialog.RestoreDirectory = true;
+                    schemaFileDialog.Multiselect = false;
+                    schemaFileDialog.Title = "Select JSON schema file";
+                    if (schemaFileDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        schemaFileName = schemaFileDialog.FileName;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Error: unable to read schema file");
+                        Console.WriteLine("Press 'q' to quit.");
+                        Console.ReadKey();
+                        Thread.Sleep(500);
+                        return;
+                    }
                 }
 
                 JSchema messageSchema;
@@ -426,14 +439,17 @@ namespace Summit_Interface
                         string timestamp = DateTime.Now.Ticks.ToString();
                         resources.timingLogFile.WriteLine(receivedMsg.message + " " + timestamp);
 
+                        //initialize return message object
+                        MyRCSMsg returnMsg = new MyRCSMsg();
+
                         //determine what message it is
                         switch (receivedMsg.message)
                         {
                             case "battery":
                                 //read battery level from INS
 
-                                //temp: for testing, load in a response from a JSON file
-                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                //temp: for testing, send back some pre-defined responses
+                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
                                 {
                                     continue;
                                 }
@@ -442,8 +458,8 @@ namespace Summit_Interface
                             case "sense-status":
                                 //read sense status from INS
 
-                                //temp: for testing, load in a response from a JSON file
-                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                //temp: for testing, send back some pre-defined responses
+                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
                                 {
                                     continue;
                                 }
@@ -452,8 +468,8 @@ namespace Summit_Interface
                             case "stim-status":
                                 //read stim status from INS
 
-                                //temp: for testing, load in a response from a JSON file
-                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                //temp: for testing, send back some pre-defined responses
+                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
                                 {
                                     continue;
                                 }
@@ -464,8 +480,8 @@ namespace Summit_Interface
 
                                 //send result of command back
 
-                                //temp: for testing, load in a response from a JSON file
-                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                //temp: for testing, send back some pre-defined responses
+                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
                                 {
                                     continue;
                                 }
@@ -476,8 +492,8 @@ namespace Summit_Interface
 
                                 //send result of command back
 
-                                //temp: for testing, load in a response from a JSON file
-                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                //temp: for testing, send back some pre-defined responses
+                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
                                 {
                                     continue;
                                 }
@@ -488,8 +504,8 @@ namespace Summit_Interface
 
                                 //send result of command back
 
-                                //temp: for testing, load in a response from a JSON file
-                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                //temp: for testing, send back some pre-defined responses
+                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
                                 {
                                     continue;
                                 }
@@ -500,8 +516,8 @@ namespace Summit_Interface
 
                                 //send result of command back
 
-                                //temp: for testing, load in a response from a JSON file
-                                if (!testResponse(receivedMsg.message, messageSchema, myRCSSocket))
+                                //temp: for testing, send back some pre-defined responses
+                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
                                 {
                                     continue;
                                 }
@@ -526,28 +542,105 @@ namespace Summit_Interface
 
         }
 
-        public bool testResponse(string responseType, JSchema messageSchema, ResponseSocket myRCSSocket)
+        public bool testResponse(string responseType, JSchema messageSchema, bool loadResponse, ResponseSocket myRCSSocket)
         {
-
-            //load in response message
-            OpenFileDialog responseFileDialog = new OpenFileDialog();
-            responseFileDialog.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
-            responseFileDialog.FilterIndex = 0;
-            responseFileDialog.RestoreDirectory = true;
-            responseFileDialog.Multiselect = false;
-            responseFileDialog.Title = "Select JSON response message file for " + responseType;
-            string responseFileName;
-            if (responseFileDialog.ShowDialog() == DialogResult.OK)
+            //if we aren't given a fixed response already, load in a response from a JSON file
+            string responseMsgText;
+            if (loadResponse)
             {
-                responseFileName = responseFileDialog.FileName;
+                //load in response message
+                OpenFileDialog responseFileDialog = new OpenFileDialog();
+                responseFileDialog.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
+                responseFileDialog.FilterIndex = 0;
+                responseFileDialog.RestoreDirectory = true;
+                responseFileDialog.Multiselect = false;
+                responseFileDialog.Title = "Select JSON response message file for " + responseType;
+                string responseFileName;
+                if (responseFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    responseFileName = responseFileDialog.FileName;
+                }
+                else
+                {
+                    Console.WriteLine("Error: unable to read response message file, not sending response");
+                    return false;
+                }
+
+                responseMsgText = File.ReadAllText(responseFileName);
             }
             else
             {
-                Console.WriteLine("Error: unable to read response message file, not sending response");
-                return false;
-            }
+                //generate a return messge here
+                MyRCSMsg returnMsg = new MyRCSMsg();
 
-            string responseMsgText = File.ReadAllText(responseFileName);
+                // randomly determine if succesfully turned sense on or some error
+                returnMsg.message = responseType;
+                returnMsg.message_type = "result";
+
+                Random random = new Random();
+
+                // response depends on what the request was
+                switch (responseType)
+                {
+                    case "battery":
+                        //generate random value between 0 -100
+                        returnMsg.payload.battery_level = (ushort)random.Next(0, 101);
+                        break;
+
+                    case "sense-status":
+                        //randomly send back sense is on or sense is off
+                        if (random.Next(2) == 0)
+                        {
+                            returnMsg.payload.sense_on = true;
+                        }
+                        else
+                        {
+                            returnMsg.payload.sense_on = false;
+                        }
+                        break;
+
+                    case "stim-status":
+                        //randomly send back stim is on or stim is off
+                        if (random.Next(2) == 0)
+                        {
+                            returnMsg.payload.stim_on = true;
+                        }
+                        else
+                        {
+                            returnMsg.payload.stim_on = false;
+                        }
+                        break;
+
+                    case "sense-on":
+                    case "sense-off":
+                    case "stim-on":
+                    case "stim-off":
+                        //for turning stim/sense on/off, randomly send back either success or some error
+                        int randInt = random.Next(3);
+                        if (randInt == 0)
+                        {
+                            returnMsg.payload.success = true;
+                        }
+                        else if (randInt == 1)
+                        {
+                            returnMsg.payload.success = false;
+                            returnMsg.payload.error_code = 1;
+                            returnMsg.payload.error_message = "Insufficient Battery";
+                        }
+                        else if (randInt == 2)
+                        {
+                            returnMsg.payload.success = false;
+                            returnMsg.payload.error_code = 2;
+                            returnMsg.payload.error_message = "INS Disconnected";
+                        }
+                        break;
+
+                }
+                
+                responseMsgText = JsonConvert.SerializeObject(returnMsg);
+
+            }
+           
             JObject testMsgObj = JObject.Parse(responseMsgText);
 
             if (testMsgObj.IsValid(messageSchema))

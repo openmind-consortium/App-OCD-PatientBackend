@@ -59,15 +59,15 @@
     </Reference>
     <Reference Include="Medtronic.NeuroStim.Olympus, Version=0.1.2.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\Medtronic.NeuroStim.Olympus.dll</HintPath>
+      <HintPath>..\..\..\Dropbox\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\Medtronic.NeuroStim.Olympus.dll</HintPath>
     </Reference>
     <Reference Include="Medtronic.SummitAPI, Version=0.6.4.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\Medtronic.SummitAPI.dll</HintPath>
+      <HintPath>..\..\..\Dropbox\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\Medtronic.SummitAPI.dll</HintPath>
     </Reference>
     <Reference Include="Medtronic.TelemetryM, Version=1.2.12.0, Culture=neutral, PublicKeyToken=535626dfb84bc5ea, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\Medtronic.TelemetryM.dll</HintPath>
+      <HintPath>..\..\..\Dropbox\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\Medtronic.TelemetryM.dll</HintPath>
     </Reference>
     <Reference Include="NetMQ, Version=4.0.0.207, Culture=neutral, PublicKeyToken=a6decef4ddc58b3a, processorArchitecture=MSIL">
       <HintPath>..\packages\NetMQ.4.0.0.207\lib\net40\NetMQ.dll</HintPath>
@@ -80,7 +80,7 @@
     </Reference>
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\NLog.dll</HintPath>
+      <HintPath>..\..\..\Dropbox\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\NLog.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -93,7 +93,7 @@
     <Reference Include="System.Xml" />
     <Reference Include="wcl, Version=6.15.1.0, Culture=neutral, PublicKeyToken=c33610a096b7e41b, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\wcl.dll</HintPath>
+      <HintPath>..\..\..\Dropbox\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_3_0\DLLs\x64\wcl.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
