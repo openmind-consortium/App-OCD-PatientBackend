@@ -662,6 +662,13 @@ namespace Summit_Interface
             public string message { get; set; }
             public Payload payload { get; set; }
 
+            public MyRCSMsg()
+            {
+                message_type = "";
+                message = "";
+                payload = new Payload();
+            }
+
             public class Payload
             {
                 public bool success { get; set; }
@@ -670,6 +677,16 @@ namespace Summit_Interface
                 public UInt16 battery_level { get; set; }
                 public bool sense_on { get; set; }
                 public bool stim_on { get; set; }
+
+                public Payload()
+                {
+                    success = true;
+                    error_code = 0;
+                    error_message = "";
+                    battery_level = 0;
+                    sense_on = true;
+                    stim_on = true;
+                }
             }
 
         }
