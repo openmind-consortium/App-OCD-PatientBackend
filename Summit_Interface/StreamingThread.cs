@@ -36,10 +36,12 @@ namespace Summit_Interface
         public INSBuffer PWBuffer { get; set; } //thread-safe buffer holding power band data
         public INSBuffer savingBuffer { get; set; } //thread-safe buffer holding data that will be saved to disk
         public SummitSystem summit { get; set; } //summit object for making API calls
+        public SummitManager summitManager { get; set; } //summit manager object for reconnecting to the INS
         public String saveDataFileName { get; set; } //name of the file to save data to
         public TdSampleRates samplingRate { get; set; } //sampling rate of the time-domain channels (to put in the header of the data file)
         public ThreadsafeFileStream timingLogFile { get; set; } //thread-safe file for writing debug information to
         public INSParameters parameters { get; set; } //configuration parameters read from JSON file. Is read only so is threadsafe
+        public bool testMyRCPS { get; set; } //if we are running code in test mode for testing connection to MyRC+S program
     }
 
     //Thread class for multithreading the streaming functions to and from Open-Ephys and for saving data to disk
@@ -366,6 +368,9 @@ namespace Summit_Interface
             //cast to get the shared resources
             ThreadResources resources = (ThreadResources)input;
 
+            //if we're doing testing, dont actually do anything with the INS
+            bool testing = resources.testMyRCPS;
+
             //option to use custom loaded return message
             bool loadReturnMsg = false; //set to false, instead use a set of hard-coded predefined messages
 
@@ -441,88 +446,240 @@ namespace Summit_Interface
 
                         //initialize return message object
                         MyRCSMsg returnMsg = new MyRCSMsg();
+                        returnMsg.message = receivedMsg.message;
+                        returnMsg.message_type = "result";
 
                         //determine what message it is
                         switch (receivedMsg.message)
                         {
                             case "battery":
-                                //read battery level from INS
-
-                                //temp: for testing, send back some pre-defined responses
-                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                if (!testing)
                                 {
-                                    continue;
+                                    //read battery level from INS
+                                    BatteryStatusResult batteryStatus;
+                                    APIReturnInfo commandInfo = resources.summit.ReadBatteryLevel(out batteryStatus);
+
+                                    if (commandInfo.RejectCode == 0)
+                                    {
+                                        ushort batteryPercentage = ushort.Parse(batteryStatus.BatteryLevelPercent.ToString());
+                                        returnMsg.payload.battery_level = batteryPercentage;
+                                    }
+                                    else
+                                    {
+                                        parseError(commandInfo, ref returnMsg);
+                                    }
+
+                                }
+                                else
+                                {
+                                    //For testing, send back some pre-defined responses
+                                    if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                    {
+                                        continue;
+                                    }
                                 }
                                 break;
 
                             case "sense-status":
-                                //read sense status from INS
-
-                                //temp: for testing, send back some pre-defined responses
-                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                if (!testing)
                                 {
-                                    continue;
+                                    //read sense status from INS
+                                    SensingState theSensingState;
+                                    APIReturnInfo commandInfo = resources.summit.ReadSensingState(out theSensingState);
+
+                                    if (commandInfo.RejectCode == 0)
+                                    {
+                                        bool timeDomainSenseOn = theSensingState.State == SenseStates.LfpSense;
+                                        returnMsg.payload.sense_on = timeDomainSenseOn;
+                                    }
+                                    else
+                                    {
+                                        parseError(commandInfo, ref returnMsg);
+                                    }
+                                }
+                                else
+                                {
+                                    //For testing, send back some pre-defined responses
+                                    if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                    {
+                                        continue;
+                                    }
                                 }
                                 break;
 
                             case "stim-status":
-                                //read stim status from INS
-
-                                //temp: for testing, send back some pre-defined responses
-                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                if (!testing)
                                 {
-                                    continue;
+                                    //read stim status from INS
+                                    GeneralInterrogateData generalInfo;
+                                    APIReturnInfo commandInfo = resources.summit.ReadGeneralInfo(out generalInfo);
+                                    if (commandInfo.RejectCode == 0)
+                                    {
+                                        bool stimOn = generalInfo.TherapyStatusData.TherapyStatus == InterrogateTherapyStatusTypes.TherapyActive;
+                                        returnMsg.payload.stim_on = stimOn;
+                                    }
+                                    else
+                                    {
+                                        parseError(commandInfo, ref returnMsg);
+                                    }
+
+                                }
+                                else
+                                {
+                                    //For testing, send back some pre-defined responses
+                                    if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                    {
+                                        continue;
+                                    }
                                 }
                                 break;
 
                             case "sense-on":
-                                //turn sensing on
-
-                                //send result of command back
-
-                                //temp: for testing, send back some pre-defined responses
-                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                if (!testing)
                                 {
-                                    continue;
+                                    //turn sensing on
+                                    APIReturnInfo commandInfo = resources.summit.WriteSensingState(SenseStates.LfpSense | SenseStates.Fft | SenseStates.Power, 0x00);
+
+                                    //send result of command back
+                                    if (commandInfo.RejectCode == 0)
+                                    {
+                                        returnMsg.payload.success = true;
+                                    }
+                                    else
+                                    {
+                                        parseError(commandInfo, ref returnMsg);
+                                    }
+                                }
+                                else
+                                {
+                                    //For testing, send back some pre-defined responses
+                                    if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                    {
+                                        continue;
+                                    }
                                 }
                                 break;
 
                             case "sense-off":
-                                //turn sensing off
-
-                                //send result of command back
-
-                                //temp: for testing, send back some pre-defined responses
-                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                if (!testing)
                                 {
-                                    continue;
+                                    //turn sensing off
+                                    APIReturnInfo commandInfo = resources.summit.WriteSensingState(SenseStates.None, 0);
+
+                                    //send result of command back
+                                    if (commandInfo.RejectCode == 0)
+                                    {
+                                        returnMsg.payload.success = true;
+                                    }
+                                    else
+                                    {
+                                        parseError(commandInfo, ref returnMsg);
+                                    }
+                                }
+                                else
+                                {
+                                    //For testing, send back some pre-defined responses
+                                    if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                    {
+                                        continue;
+                                    }
                                 }
                                 break;
 
                             case "stim-on":
-                                //turn stim on
-
-                                //send result of command back
-
-                                //temp: for testing, send back some pre-defined responses
-                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                if (!testing)
                                 {
-                                    continue;
+                                    //turn stim on
+                                    APIReturnInfo commandInfo = resources.summit.StimChangeTherapyOn();
+
+                                    //send result of command back
+                                    if (commandInfo.RejectCode == 0)
+                                    {
+                                        returnMsg.payload.success = true;
+                                    }
+                                    else
+                                    {
+                                        parseError(commandInfo, ref returnMsg);
+                                    }
+                                }
+                                else
+                                {
+                                    //For testing, send back some pre-defined responses
+                                    if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                    {
+                                        continue;
+                                    }
                                 }
                                 break;
 
                             case "stim-off":
-                                //turn stim off
-
-                                //send result of command back
-
-                                //temp: for testing, send back some pre-defined responses
-                                if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                if (!testing)
                                 {
-                                    continue;
+                                    //turn stim on
+                                    APIReturnInfo commandInfo = resources.summit.StimChangeTherapyOff(true);
+
+                                    //send result of command back
+                                    if (commandInfo.RejectCode == 0)
+                                    {
+                                        returnMsg.payload.success = true;
+                                    }
+                                    else
+                                    {
+                                        parseError(commandInfo, ref returnMsg);
+                                    }
+
+                                }
+                                else
+                                {
+                                    //For testing, send back some pre-defined responses
+                                    if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                    {
+                                        continue;
+                                    }
                                 }
                                 break;
 
+                            case "reconnect":
+                                if (!testing)
+                                {
+                                    SummitSystem tmpSummit = resources.summit;
+                                    if (SummitUtils.SummitConnect(resources.summitManager, ref tmpSummit))
+                                    {
+                                        returnMsg.payload.success = true;
+                                    }
+                                    else
+                                    {
+                                        returnMsg.payload.success = false;
+                                        returnMsg.payload.error_code = 4;
+                                        returnMsg.payload.error_message = "Unable to connect to the INS";
+                                    }
+                                    resources.summit = tmpSummit;
+                                }
+                                else
+                                {
+                                    //For testing, send back some pre-defined responses
+                                    if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                    {
+                                        continue;
+                                    }
+                                }
+                                break;
+
+                        }
+
+                        if (!testing)
+                        {
+                            string responseMsgText = JsonConvert.SerializeObject(returnMsg);
+                            JObject responseMsgObj = JObject.Parse(responseMsgText);
+
+                            if (responseMsgObj.IsValid(messageSchema))
+                            {
+                                myRCSSocket.SendFrame(responseMsgText);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Error: response message, does not conform to the schema, not sending response");
+                            }
                         }
 
                     }
@@ -541,6 +698,12 @@ namespace Summit_Interface
             NetMQConfig.Cleanup();
 
         }
+
+        public void parseError(APIReturnInfo summitInfo, ref MyRCSMsg msg)
+        {
+            
+        }
+
 
         public bool testResponse(string responseType, JSchema messageSchema, bool loadResponse, ResponseSocket myRCSSocket)
         {
@@ -615,7 +778,8 @@ namespace Summit_Interface
                     case "sense-off":
                     case "stim-on":
                     case "stim-off":
-                        //for turning stim/sense on/off, randomly send back either success or some error
+                    case "reconnect":
+                        //for turning stim/sense on/off or reconnecting, randomly send back either success or some error
                         int randInt = random.Next(3);
                         if (randInt == 0)
                         {
