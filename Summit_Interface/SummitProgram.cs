@@ -20,6 +20,9 @@ using Medtronic.NeuroStim.Olympus.DataTypes.DeviceManagement;
 
 using NetMQ;
 using NetMQ.Sockets;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Schema;
 
 namespace Summit_Interface
 {
@@ -160,6 +163,7 @@ namespace Summit_Interface
 
                     if (retryKey.KeyChar.ToString() != "r")
                     {
+                        theSummitManager.Dispose();
                         return;
                     }
                 }
@@ -810,6 +814,12 @@ namespace Summit_Interface
 
                 APIReturnInfo bufferInfo = new APIReturnInfo();
 
+                SummitUtils.QueryDeviceStatus(m_summit, out StreamingThread.MyRCSMsg.Payload payload);
+                StreamingThread.MyRCSMsg returnMsg = new StreamingThread.MyRCSMsg();
+                returnMsg.message = "DeviceInfo";
+                returnMsg.message_type = "result";
+                returnMsg.payload = payload;
+                string responseMsgText = JsonConvert.SerializeObject(returnMsg);
 
                 while (thekey.KeyChar.ToString() != quitKey)
                 {

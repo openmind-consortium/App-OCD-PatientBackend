@@ -10,7 +10,7 @@ namespace Summit_Interface
 {
 
     //Simple wrapper around System.IO.StreamWriter to make it thread safe (for logging thread timing info)
-    class ThreadsafeFileStream
+    public class ThreadsafeFileStream
     {
         private System.IO.StreamWriter m_fileStream; // the actual file stream
         private ReaderWriterLockSlim m_RWLock; //lock for thread-safety

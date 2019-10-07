@@ -26,10 +26,10 @@ using Newtonsoft.Json.Schema;
 namespace Summit_Interface
 {
     //enum of the different tasks for the threads
-    enum ThreadType { sense, stim, dataSave, myRCS };
+    public enum ThreadType { sense, stim, dataSave, myRCS };
 
     //Structure holding all the things we want to pass between threads (Make sure all of these are thread safe!)
-    struct ThreadResources
+    public struct ThreadResources
     {
         public INSBuffer TDbuffer { get; set; } //thread-safe buffer holding time-domain data
         public INSBuffer FFTBuffer { get; set; } //thread-safe buffer holding FFT data
@@ -45,7 +45,7 @@ namespace Summit_Interface
     }
 
     //Thread class for multithreading the streaming functions to and from Open-Ephys and for saving data to disk
-    class StreamingThread
+    public class StreamingThread
     {
         private Thread m_thread; //thread object
         private bool m_stopped { get; set; } //for stopping the thread
@@ -480,7 +480,7 @@ namespace Summit_Interface
                                 }
                                 break;
 
-                            case "sense-status":
+                            case "sense_status":
                                 if (!testing)
                                 {
                                     //read sense status from INS
@@ -507,7 +507,7 @@ namespace Summit_Interface
                                 }
                                 break;
 
-                            case "stim-status":
+                            case "stim_status":
                                 if (!testing)
                                 {
                                     //read stim status from INS
@@ -534,7 +534,7 @@ namespace Summit_Interface
                                 }
                                 break;
 
-                            case "sense-on":
+                            case "sense_on":
                                 if (!testing)
                                 {
                                     //turn sensing on
@@ -560,7 +560,7 @@ namespace Summit_Interface
                                 }
                                 break;
 
-                            case "sense-off":
+                            case "sense_off":
                                 if (!testing)
                                 {
                                     //turn sensing off
@@ -586,7 +586,7 @@ namespace Summit_Interface
                                 }
                                 break;
 
-                            case "stim-on":
+                            case "stim_on":
                                 if (!testing)
                                 {
                                     //turn stim on
@@ -612,7 +612,7 @@ namespace Summit_Interface
                                 }
                                 break;
 
-                            case "stim-off":
+                            case "stim_off":
                                 if (!testing)
                                 {
                                     //turn stim on
@@ -750,7 +750,7 @@ namespace Summit_Interface
                         returnMsg.payload.battery_level = (ushort)random.Next(0, 101);
                         break;
 
-                    case "sense-status":
+                    case "sense_status":
                         //randomly send back sense is on or sense is off
                         if (random.Next(2) == 0)
                         {
@@ -762,7 +762,7 @@ namespace Summit_Interface
                         }
                         break;
 
-                    case "stim-status":
+                    case "stim_status":
                         //randomly send back stim is on or stim is off
                         if (random.Next(2) == 0)
                         {
@@ -774,10 +774,10 @@ namespace Summit_Interface
                         }
                         break;
 
-                    case "sense-on":
-                    case "sense-off":
-                    case "stim-on":
-                    case "stim-off":
+                    case "sense_on":
+                    case "sense_off":
+                    case "stim_on":
+                    case "stim_off":
                     case "reconnect":
                         //for turning stim/sense on/off or reconnecting, randomly send back either success or some error
                         int randInt = random.Next(3);
@@ -841,6 +841,8 @@ namespace Summit_Interface
                 public UInt16 battery_level { get; set; }
                 public bool sense_on { get; set; }
                 public bool stim_on { get; set; }
+                public SenseInfo sense_config { get; set; }
+                public StimInfo stim_config { get; set; }
 
                 public Payload()
                 {
@@ -850,9 +852,99 @@ namespace Summit_Interface
                     battery_level = 0;
                     sense_on = true;
                     stim_on = true;
+                    sense_config = new SenseInfo();
+                    stim_config = new StimInfo();
+                }
+                
+                public class SenseInfo
+                {
+                    public bool time_domain_on { get; set; }
+                    public bool FFT_on { get; set; }
+                    public bool accel_on { get; set; }
+                    public bool powerbands_on { get; set; }
+                    public List<UInt16> anodes { get; set; }
+                    public List<UInt16> cathodes { get; set; }
+                    public List<UInt16> sampling_rates { get; set; }
+                    public List<double> highpass_filter { get; set; }
+                    public List<UInt16> lowpass_filter1 { get; set; }
+                    public List<UInt16> lowpass_filter2 { get; set; }
+                    public UInt16 FFT_size { get; set; }
+                    public UInt16 FFT_interval { get; set; }
+                    public bool FFT_windowing_on { get; set; }
+                    public string FFT_window_load { get; set; }
+                    public UInt16 FFT_stream_size { get; set; }
+                    public UInt16 FFT_stream_offset { get; set; }
+                    public List<UInt16> powerband1_lower_cutoff { get; set; }
+                    public List<UInt16> powerband1_upper_cutoff { get; set; }
+                    public List<UInt16> powerband2_lower_cutoff { get; set; }
+                    public List<UInt16> powerband2_upper_cutoff { get; set; }
+                    public List<bool> powerband1_enabled { get; set; }
+                    public List<bool> powerband2_enabled { get; set; }
+
+                    public SenseInfo()
+                    {
+                        time_domain_on = false;
+                        FFT_on = false;
+                        accel_on = false;
+                        powerbands_on = false;
+                        anodes = new List<UInt16>();
+                        cathodes = new List<UInt16>();
+                        sampling_rates = new List<UInt16>();
+                        highpass_filter = new List<double>();
+                        lowpass_filter1 = new List<UInt16>();
+                        lowpass_filter2 = new List<UInt16>();
+                        FFT_size = 0;
+                        FFT_interval = 0;
+                        FFT_windowing_on = false;
+                        FFT_window_load = "";
+                        FFT_stream_size = 0;
+                        FFT_stream_offset = 0;
+                        powerband1_lower_cutoff = new List<UInt16>();
+                        powerband1_upper_cutoff = new List<UInt16>();
+                        powerband2_lower_cutoff = new List<UInt16>();
+                        powerband2_upper_cutoff = new List<UInt16>();
+                        powerband1_enabled = new List<bool>();
+                        powerband2_enabled = new List<bool>();
+                    }
+                }
+
+                public class StimInfo
+                {
+                    public UInt16 current_group { get; set; }
+                    public List<UInt16> number_of_programs { get; set; }
+                    public List<List<UInt16>> anodes { get; set; }
+                    public List<List<UInt16>> cathodes { get; set; }
+                    public List<UInt16> pulsewidth_lower_limit { get; set; }
+                    public List<UInt16> pulsewidth_upper_limit { get; set; }
+                    public List<List<UInt16>> current_pulsewidth { get; set; }
+                    public List<double> frequency_lower_limit { get; set; }
+                    public List<double> frequency_upper_limit { get; set; }
+                    public List<double> current_frequency { get; set; }
+                    public List<List<double>> amplitude_lower_limit { get; set; }
+                    public List<List<double>> amplitude_upper_limit { get; set; }
+                    public List<List<double>> current_amplitude { get; set; }
+                    public List<List<bool>> active_recharge { get; set; }
+
+                    public StimInfo()
+                    {
+                        current_group = 0;
+                        number_of_programs = new List<UInt16>();
+                        anodes = new List<List<UInt16>>();
+                        cathodes = new List<List<UInt16>>();
+                        pulsewidth_lower_limit = new List<UInt16>();
+                        pulsewidth_upper_limit = new List<UInt16>();
+                        current_pulsewidth = new List<List<UInt16>>();
+                        frequency_lower_limit = new List<double>();
+                        frequency_upper_limit = new List<double>();
+                        current_frequency = new List<double>();
+                        amplitude_lower_limit = new List<List<double>>();
+                        amplitude_upper_limit = new List<List<double>>();
+                        current_amplitude = new List<List<double>>();
+                        active_recharge = new List<List<bool>>();
+                    }
+
                 }
             }
-
         }
 
         //

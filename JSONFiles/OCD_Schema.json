@@ -1,30 +1,31 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Patient-facing/summit-interface data passing schema",
-  "description": "v0.02",
+  "description": "v0.03",
   "examples": [
     
     {
       "message_type": "get",
-      "message": "battery"
+      "message": "device"
     },
 
     {
       "message_type": "post",
-      "message": "stim-on"
+      "message": "stim_on"
     },
 
     {
       "message_type": "result",
-      "message": "stim-status",
+      "message": "device",
       "payload": {
-        "stim-on": true
+		"battery" : 99,
+        "stim_on": true
       }
     },
 
     {
       "message_type": "result",
-      "message": "sense-off",
+      "message": "sense_off",
       "payload": {
         "success": true
       }
@@ -32,11 +33,11 @@
 
     {
       "message_type": "result",
-      "message": "stim-on",
+      "message": "stim_on",
       "payload": {
         "success": false,
-        "error-code": 1,
-        "error-message": "Not enough battery"
+        "error_code": 1,
+        "error_message": "Not enough battery"
       }
     }
 
@@ -44,7 +45,7 @@
 
   "definitions": {
 
-    "command-result": {
+    "command_result": {
       "description": "object that is returned in 'payload' when sense/stim is turned on/off",
       "type": "object",
       "properties": {
@@ -95,7 +96,7 @@
     "message": {
       "description": "The specific request/command/result",
       "type": "string",
-      "enum": ["battery", "sense-status", "stim-status", "sense-on", "sense-off", "stim-on", "stim-off"]
+      "enum": ["battery", "sense_status", "stim_status", "sense_on", "sense_off", "stim_on", "stim_off"]
     }
   },
 
@@ -134,7 +135,7 @@
       } },
 
       {"if": {
-        "properties": { "message": {"const": "sense-status"} }
+        "properties": { "message": {"const": "sense_status"} }
       },
 
       "then": {
@@ -158,7 +159,7 @@
       } },
 
       {"if": {
-        "properties": { "message": {"const": "stim-status"} }
+        "properties": { "message": {"const": "stim_status"} }
       },
 
       "then": {
@@ -182,7 +183,7 @@
       } },
 
       {"if": {
-        "properties": { "message": {"const": "sense-on"} }
+        "properties": { "message": {"const": "sense_on"} }
       },
 
       "then": {
@@ -190,14 +191,14 @@
 
           "payload": {
             "description": "Payload structure for the result of a command to turn sensing on",
-            "$ref": "#/definitions/command-result"
+            "$ref": "#/definitions/command_result"
           }
 
         }
       } },
 
       {"if": {
-        "properties": { "message": {"const": "sense-off"} }
+        "properties": { "message": {"const": "sense_off"} }
       },
 
       "then": {
@@ -205,14 +206,14 @@
 
           "payload": {
             "description": "Payload structure for the result of a command to turn sensing off",
-            "$ref": "#/definitions/command-result"
+            "$ref": "#/definitions/command_result"
           }
 
         }
       } },
 
       {"if": {
-        "properties": { "message": {"const": "stim-on"} }
+        "properties": { "message": {"const": "stim_on"} }
       },
 
       "then": {
@@ -220,14 +221,14 @@
 
           "payload": {
             "description": "Payload structure for the result of a command to turn stim on",
-            "$ref": "#/definitions/command-result"
+            "$ref": "#/definitions/command_result"
           }
 
         }
       } },
 
       {"if": {
-        "properties": { "message": {"const": "stim-off"} }
+        "properties": { "message": {"const": "stim_off"} }
       },
 
       "then": {
@@ -235,7 +236,7 @@
 
           "payload": {
             "description": "Payload structure for the result of a command to turn stim off",
-            "$ref": "#/definitions/command-result"
+            "$ref": "#/definitions/command_result"
           }
 
         }
