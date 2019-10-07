@@ -431,7 +431,16 @@ namespace Summit_Interface
                     }
 
                     //check that the received message validates against the schema
-                    JObject requestMsgObj = JObject.Parse(requestMessage);
+                    JObject requestMsgObj;
+                    try
+                    {
+                        requestMsgObj = JObject.Parse(requestMessage);
+                    }
+                    catch
+                    {
+                        Console.WriteLine("Received a msg from MyRCpS program, but was unable to parse JSON");
+                        continue;
+                    }
 
                     bool msgValid = requestMsgObj.IsValid(messageSchema);
 
@@ -466,7 +475,34 @@ namespace Summit_Interface
                                     }
                                     else
                                     {
-                                        parseError(commandInfo, ref returnMsg);
+                                        parseError(commandInfo, 0, ref returnMsg);
+                                    }
+
+                                }
+                                else
+                                {
+                                    //For testing, send back some pre-defined responses
+                                    if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                    {
+                                        continue;
+                                    }
+                                }
+                                break;
+
+                            case "device_info":
+                                if (!testing)
+                                {
+                                    //get info from the INS
+                                    APIReturnInfo commandInfo = SummitUtils.QueryDeviceStatus(
+                                        resources.summit, out StreamingThread.MyRCSMsg.Payload payload, out int parseErrorCode);
+
+                                    if (commandInfo.RejectCode == 0 && parseErrorCode == 0)
+                                    {
+                                        returnMsg.payload = payload;
+                                    }
+                                    else
+                                    {
+                                        parseError(commandInfo, parseErrorCode, ref returnMsg);
                                     }
 
                                 }
@@ -494,7 +530,7 @@ namespace Summit_Interface
                                     }
                                     else
                                     {
-                                        parseError(commandInfo, ref returnMsg);
+                                        parseError(commandInfo, 0, ref returnMsg);
                                     }
                                 }
                                 else
@@ -520,7 +556,7 @@ namespace Summit_Interface
                                     }
                                     else
                                     {
-                                        parseError(commandInfo, ref returnMsg);
+                                        parseError(commandInfo, 0, ref returnMsg);
                                     }
 
                                 }
@@ -539,6 +575,7 @@ namespace Summit_Interface
                                 {
                                     //turn sensing on
                                     APIReturnInfo commandInfo = resources.summit.WriteSensingState(SenseStates.LfpSense | SenseStates.Fft | SenseStates.Power, 0x00);
+                                    commandInfo = resources.summit.WriteSensingEnableStreams(true, true, true, false, false, true, true, false);
 
                                     //send result of command back
                                     if (commandInfo.RejectCode == 0)
@@ -547,7 +584,7 @@ namespace Summit_Interface
                                     }
                                     else
                                     {
-                                        parseError(commandInfo, ref returnMsg);
+                                        parseError(commandInfo, 0, ref returnMsg);
                                     }
                                 }
                                 else
@@ -565,6 +602,7 @@ namespace Summit_Interface
                                 {
                                     //turn sensing off
                                     APIReturnInfo commandInfo = resources.summit.WriteSensingState(SenseStates.None, 0);
+                                    commandInfo = resources.summit.WriteSensingEnableStreams(false, false, false, false, false, false, false, false);
 
                                     //send result of command back
                                     if (commandInfo.RejectCode == 0)
@@ -573,7 +611,7 @@ namespace Summit_Interface
                                     }
                                     else
                                     {
-                                        parseError(commandInfo, ref returnMsg);
+                                        parseError(commandInfo, 0, ref returnMsg);
                                     }
                                 }
                                 else
@@ -599,7 +637,7 @@ namespace Summit_Interface
                                     }
                                     else
                                     {
-                                        parseError(commandInfo, ref returnMsg);
+                                        parseError(commandInfo, 0, ref returnMsg);
                                     }
                                 }
                                 else
@@ -625,7 +663,7 @@ namespace Summit_Interface
                                     }
                                     else
                                     {
-                                        parseError(commandInfo, ref returnMsg);
+                                        parseError(commandInfo, 0, ref returnMsg);
                                     }
 
                                 }
@@ -699,7 +737,7 @@ namespace Summit_Interface
 
         }
 
-        public void parseError(APIReturnInfo summitInfo, ref MyRCSMsg msg)
+        public void parseError(APIReturnInfo summitInfo, int parseErrorCode, ref MyRCSMsg msg)
         {
             
         }
@@ -748,6 +786,60 @@ namespace Summit_Interface
                     case "battery":
                         //generate random value between 0 -100
                         returnMsg.payload.battery_level = (ushort)random.Next(0, 101);
+                        break;
+
+                    case "device_info":
+                        //just send back a fixed defined payload since there's too mnay 
+                        //variables to generate a random value for all of them
+                        returnMsg.payload.battery_level = 50;
+                        returnMsg.payload.sense_on = true;
+                        returnMsg.payload.stim_on = true;
+                        
+                        returnMsg.payload.sense_config.time_domain_on = true;
+                        returnMsg.payload.sense_config.FFT_on = true;
+                        returnMsg.payload.sense_config.accel_on = true;
+                        returnMsg.payload.sense_config.powerbands_on = true;
+                        returnMsg.payload.sense_config.anodes = new List<UInt16>() { 0, 2, 8, 10 };
+                        returnMsg.payload.sense_config.cathodes = new List<UInt16>() { 1, 3, 9, 11 };
+                        returnMsg.payload.sense_config.sampling_rates = new List<UInt16>() { 500, 500, 500, 500 };
+                        returnMsg.payload.sense_config.highpass_filter = new List<double>() { 0.85, 0.85, 0.85, 0.85 };
+                        returnMsg.payload.sense_config.lowpass_filter1 = new List<UInt16>() { 450, 450, 450, 450 };
+                        returnMsg.payload.sense_config.lowpass_filter2 = new List<UInt16>() { 1700, 1700, 1700, 1700 };
+                        returnMsg.payload.sense_config.FFT_size = 1024;
+                        returnMsg.payload.sense_config.FFT_interval = 500;
+                        returnMsg.payload.sense_config.FFT_windowing_on = true;
+                        returnMsg.payload.sense_config.FFT_window_load = "Hann100";
+                        returnMsg.payload.sense_config.FFT_stream_size = 0;
+                        returnMsg.payload.sense_config.FFT_stream_offset = 0;
+                        returnMsg.payload.sense_config.powerband1_lower_cutoff = new List<UInt16>() { 10, 20, 30, 40 };
+                        returnMsg.payload.sense_config.powerband1_upper_cutoff = new List<UInt16>() { 20, 30, 40, 50 };
+                        returnMsg.payload.sense_config.powerband2_lower_cutoff = new List<UInt16>() { 60, 70, 80, 90 };
+                        returnMsg.payload.sense_config.powerband2_upper_cutoff = new List<UInt16>() { 70, 80, 90, 100 };
+                        returnMsg.payload.sense_config.powerband1_enabled = new List<bool>() { true, false, true, false };
+                        returnMsg.payload.sense_config.powerband2_enabled = new List<bool>() { false, true, false, true };
+
+                        returnMsg.payload.stim_config.current_group = 0;
+                        returnMsg.payload.stim_config.number_of_programs = new List<UInt16>() { 4, 2, 0, 0 };
+                        returnMsg.payload.stim_config.anodes = new List<List<UInt16>>() {
+                            new List<UInt16>() { 0, 1, 2, 2 }, new List<UInt16>() { 13, 14 }, new List<UInt16>(), new List<UInt16>() };
+                        returnMsg.payload.stim_config.cathodes = new List<List<UInt16>>() {
+                            new List<UInt16>() { 16, 16, 16, 3 }, new List<UInt16>() { 14, 16 }, new List<UInt16>(), new List<UInt16>() };
+                        returnMsg.payload.stim_config.pulsewidth_lower_limit = new List<UInt16>() { 0, 0, 0, 0 };
+                        returnMsg.payload.stim_config.pulsewidth_upper_limit = new List<UInt16>() { 150, 150, 150, 150 };
+                        returnMsg.payload.stim_config.current_pulsewidth = new List<List<UInt16>>() {
+                            new List<UInt16>() { 80, 100, 80, 100 }, new List<UInt16>() { 120, 120 }, new List<UInt16>(), new List<UInt16>() };
+                        returnMsg.payload.stim_config.frequency_lower_limit = new List<double>() { 0, 0, 0, 0 };
+                        returnMsg.payload.stim_config.frequency_upper_limit = new List<double>() { 80, 80, 80, 80 };
+                        returnMsg.payload.stim_config.current_frequency = new List<double>() { 10, 20, 30, 40 };
+                        returnMsg.payload.stim_config.amplitude_lower_limit = new List<List<double>>() {
+                            new List<double>() { 0, 0, 0, 0 }, new List<double>() { 0, 0 }, new List<double>(), new List<double>() };
+                        returnMsg.payload.stim_config.amplitude_upper_limit = new List<List<double>>() {
+                            new List<double>() { 3, 3, 3, 3 }, new List<double>() { 4, 4 }, new List<double>(), new List<double>() };
+                        returnMsg.payload.stim_config.current_amplitude = new List<List<double>>() {
+                            new List<double>() { 1, 1.5, 2, 2.5 }, new List<double>() { 3, 0 }, new List<double>(), new List<double>() };
+                        returnMsg.payload.stim_config.active_recharge = new List<List<bool>>() {
+                            new List<bool>() { true, true, true, true }, new List<bool>() { false, false }, new List<bool>(), new List<bool>() };
+
                         break;
 
                     case "sense_status":

@@ -1,28 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Timers;
-using System.Threading;
-using System.Windows.Forms;
-
+﻿using Medtronic.NeuroStim.Olympus.Commands;
+using Medtronic.NeuroStim.Olympus.DataTypes.Core;
+using Medtronic.NeuroStim.Olympus.DataTypes.DeviceManagement;
+using Medtronic.NeuroStim.Olympus.DataTypes.Measurement;
+using Medtronic.NeuroStim.Olympus.DataTypes.PowerManagement;
+using Medtronic.NeuroStim.Olympus.DataTypes.Sensing;
+using Medtronic.NeuroStim.Olympus.DataTypes.Therapy;
 using Medtronic.SummitAPI.Classes;
 using Medtronic.SummitAPI.Events;
-using Medtronic.TelemetryM;
-using Medtronic.NeuroStim.Olympus.DataTypes.Core;
-using Medtronic.NeuroStim.Olympus.DataTypes.Sensing;
-using Medtronic.NeuroStim.Olympus.DataTypes.Measurement;
-using Medtronic.NeuroStim.Olympus.Commands;
-using Medtronic.NeuroStim.Olympus.DataTypes.PowerManagement;
-using Medtronic.NeuroStim.Olympus.DataTypes.Therapy;
-using Medtronic.NeuroStim.Olympus.DataTypes.DeviceManagement;
-
 using NetMQ;
 using NetMQ.Sockets;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Windows.Forms;
+using System.IO;
 
 namespace Summit_Interface
 {
@@ -811,15 +806,8 @@ namespace Summit_Interface
                 double? currentStimFreq, newStimFreq; //and stim freq
                 int? currentStimPW, newStimPW; //and stim pulse wdith
                 bool stimCurrentlyOn = false; //indicates if stim is on
-
+                
                 APIReturnInfo bufferInfo = new APIReturnInfo();
-
-                SummitUtils.QueryDeviceStatus(m_summit, out StreamingThread.MyRCSMsg.Payload payload);
-                StreamingThread.MyRCSMsg returnMsg = new StreamingThread.MyRCSMsg();
-                returnMsg.message = "DeviceInfo";
-                returnMsg.message_type = "result";
-                returnMsg.payload = payload;
-                string responseMsgText = JsonConvert.SerializeObject(returnMsg);
 
                 while (thekey.KeyChar.ToString() != quitKey)
                 {

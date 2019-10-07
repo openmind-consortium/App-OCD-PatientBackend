@@ -1663,7 +1663,7 @@ namespace Summit_Interface
         /// 
         /// <returns>   True if it succeeds, false if it fails. </returns>
         ///-------------------------------------------------------------------------------------------------
-        public static bool ConvertEnumsToValues(string enumName, string enumType, out float value)
+        public static bool ConvertEnumsToValues(string enumName, string enumType, out double value)
         {
             int nChars = enumName.Length;
             value = 0;
@@ -1684,7 +1684,7 @@ namespace Summit_Interface
                     }
                     else
                     {
-                        if (!float.TryParse(enumName.Substring(3), out value))
+                        if (!double.TryParse(enumName.Substring(3), out value))
                         {
                             return false;
                         }
@@ -1702,7 +1702,7 @@ namespace Summit_Interface
                         return false;
                     }
 
-                    if (!float.TryParse(enumName.Substring(3, nChars - 5), out value))
+                    if (!double.TryParse(enumName.Substring(3, nChars - 5), out value))
                     {
                         return false;
                     }
@@ -1717,10 +1717,12 @@ namespace Summit_Interface
                         return false;
                     }
 
-                    if (!float.TryParse(enumName.Substring(3, nChars - 5).Replace('_', '.'), out value))
+                    if (!double.TryParse(enumName.Substring(3, nChars - 5).Replace('_', '.'), out value))
                     {
                         return false;
                     }
+                    //for some reason it parses 0.85 as some number really close to 0.85 but not exactly
+                    //value = Convert.ToSingle(Math.Round(value, 3));
                     return true;
                     break;
 
@@ -1737,7 +1739,7 @@ namespace Summit_Interface
                         value = 0;
                         return true;
                     }
-                    if (!float.TryParse(enumName.Substring(6, nChars - 8), out value))
+                    if (!double.TryParse(enumName.Substring(6, nChars - 8), out value))
                     {
                         return false;
                     }
@@ -1752,7 +1754,7 @@ namespace Summit_Interface
                         return false;
                     }
 
-                    if (!float.TryParse(enumName.Substring(4, nChars - 4), out value))
+                    if (!double.TryParse(enumName.Substring(4, nChars - 4), out value))
                     {
                         return false;
                     }
@@ -1767,7 +1769,7 @@ namespace Summit_Interface
                         return false;
                     }
 
-                    if (!float.TryParse(enumName.Substring(5), out value))
+                    if (!double.TryParse(enumName.Substring(5), out value))
                     {
                         return false;
                     }
@@ -1852,12 +1854,22 @@ namespace Summit_Interface
         ///
         /// <param name="theSummit">        The summit object to talk to the INS. </param>
         /// <param name="payload">          Output Payload structure, for sending to MyRcpS. </param>
+        /// <param name="parseErrorCode">   Indicates whether there was an error in the parsing of the
+        ///                                 data from the INS (rather than an error in talking to the
+        ///                                 INS). 
+        ///                                 0 - No error in parsing (though still could have INS error)
+        ///                                 1 - Error in parsing Enums
+        ///                                 2 - # of power bands != # of time domain channels 
+        ///                                 3 - found two anodes for a stim program
+        ///                                 4 - found two cathodes for a stim program
+        ///                                 5 - couldn't find anode or cathode for a stim program </param>
         /// 
-        /// <returns>   True if it succeeds, false if it fails. </returns>
+        /// <returns>   The summit error code (which could be no error). </returns>
         ///-------------------------------------------------------------------------------------------------
-        public static bool QueryDeviceStatus(SummitSystem theSummit, out StreamingThread.MyRCSMsg.Payload payload)
+        public static APIReturnInfo QueryDeviceStatus(SummitSystem theSummit, out StreamingThread.MyRCSMsg.Payload payload, out int parseErrorCode)
         {
             payload = new StreamingThread.MyRCSMsg.Payload();
+            parseErrorCode = 0;
 
             //run queries using the summit API functions
             APIReturnInfo commandInfo = new APIReturnInfo();
@@ -1867,7 +1879,7 @@ namespace Summit_Interface
             commandInfo = theSummit.ReadSensingSettings(out sensingConfig);
             if (commandInfo.RejectCode != 0)
             {
-                return false;
+                return commandInfo;
             }
 
             //parse sense config values
@@ -1884,12 +1896,13 @@ namespace Summit_Interface
                     boreOffset = 8;
                 }
 
-                float anodeChan, cathodeChan;
+                double anodeChan, cathodeChan;
 
                 enumName = sensingConfig.TimeDomainChannels[iChan].PlusInput.ToString();
                 if (!ConvertEnumsToValues(enumName, "TdMuxInputs", out anodeChan))
                 {
-                    return false;
+                    parseErrorCode = 1;
+                    return commandInfo;
                 }
                 if (anodeChan != 16)
                 {
@@ -1899,7 +1912,8 @@ namespace Summit_Interface
                 enumName = sensingConfig.TimeDomainChannels[iChan].MinusInput.ToString();
                 if(!ConvertEnumsToValues(enumName, "TdMuxInputs", out cathodeChan))
                 {
-                    return false;
+                    parseErrorCode = 1;
+                    return commandInfo;
                 }
                 if (cathodeChan != 16)
                 {
@@ -1910,46 +1924,51 @@ namespace Summit_Interface
                 payload.sense_config.cathodes.Add(Convert.ToUInt16(cathodeChan));
 
                 //next get the filter values for each channel
-                float lpf1Value, lpf2Value, hpfValue;
+                double lpf1Value, lpf2Value, hpfValue;
 
                 enumName = sensingConfig.TimeDomainChannels[iChan].Lpf1.ToString();
                 if(!ConvertEnumsToValues(enumName, "TdLpfStage1", out lpf1Value))
                 {
-                    return false;
+                    parseErrorCode = 1;
+                    return commandInfo;
                 }
                 payload.sense_config.lowpass_filter1.Add(Convert.ToUInt16(lpf1Value));
 
                 enumName = sensingConfig.TimeDomainChannels[iChan].Lpf2.ToString();
                 if(!ConvertEnumsToValues(enumName, "TdLpfStage2", out lpf2Value))
                 {
-                    return false;
+                    parseErrorCode = 1;
+                    return commandInfo;
                 }
                 payload.sense_config.lowpass_filter2.Add(Convert.ToUInt16(lpf2Value));
 
                 enumName = sensingConfig.TimeDomainChannels[iChan].Hpf.ToString();
                 if(!ConvertEnumsToValues(enumName, "TdHpfs", out hpfValue))
                 {
-                    return false;
+                    parseErrorCode = 1;
+                    return commandInfo;
                 }
                 payload.sense_config.highpass_filter.Add(hpfValue);
                 
                 //then the sampling rates
-                float samplingRate;
+                double samplingRate;
                 enumName = sensingConfig.TimeDomainChannels[iChan].SampleRate.ToString();
                 if(!ConvertEnumsToValues(enumName, "TdSampleRates", out samplingRate))
                 {
-                    return false;
+                    parseErrorCode = 1;
+                    return commandInfo;
                 }
                 payload.sense_config.sampling_rates.Add(Convert.ToUInt16(samplingRate));
             }
 
             //fft config
-            float fftSize, fftWindowLoad, fftStreamSize, fftStreamOffset;
+            double fftSize, fftWindowLoad, fftStreamSize, fftStreamOffset;
 
             enumName = sensingConfig.FftConfig.Size.ToString();
             if (!ConvertEnumsToValues(enumName, "FftSizes", out fftSize))
             {
-                return false;
+                parseErrorCode = 1;
+                return commandInfo;
             }
             payload.sense_config.FFT_size = Convert.ToUInt16(fftSize);
 
@@ -1963,7 +1982,8 @@ namespace Summit_Interface
             if (sensingConfig.PowerChannels.Count() != nChannels)
             {
                 //the number of power band channels must equal the number of time domain channels
-                return false;
+                parseErrorCode = 2;
+                return commandInfo;
             }
             
             for (int iChan = 0; iChan <= nChannels - 1; iChan++)
@@ -1977,7 +1997,8 @@ namespace Summit_Interface
                     !Enum.TryParse<BandEnables>("Ch" + iChan.ToString() + "Band1Enabled", out BandEnables enabledEnum2))
                 {
                     //for some reason couldn't get the enum name, double check the enum values names
-                    return false;
+                    parseErrorCode = 1;
+                    return commandInfo;
                 }
 
                 payload.sense_config.powerband1_enabled.Add(sensingConfig.BandEnable.HasFlag(enabledEnum1));
@@ -1989,7 +2010,7 @@ namespace Summit_Interface
             commandInfo = theSummit.ReadSensingStreamState(out StreamState streamState);
             if (commandInfo.RejectCode != 0)
             {
-                return false;
+                return commandInfo;
             }
 
             payload.sense_config.time_domain_on = streamState.TimeDomainStreamEnabled;
@@ -2004,24 +2025,26 @@ namespace Summit_Interface
             commandInfo = theSummit.ReadGeneralInfo(out insGeneralInfo);
             if (commandInfo.RejectCode != 0)
             {
-                return false;
+                return commandInfo;
             }
 
             //the current active group
             enumName = insGeneralInfo.TherapyStatusData.ActiveGroup.ToString();
-            float currentGroup;
+            double currentGroup;
             if (!ConvertEnumsToValues(enumName, "GroupNumber", out currentGroup))
             {
-                return false;
+                parseErrorCode = 1;
+                return commandInfo;
             }
             payload.stim_config.current_group = Convert.ToUInt16(currentGroup);
 
             //whether stim is currently on or not
             enumName = insGeneralInfo.TherapyStatusData.TherapyStatus.ToString();
-            float stimOn;
+            double stimOn;
             if (!ConvertEnumsToValues(enumName, "InterrogateTherapyStatusTypes", out stimOn))
             {
-                return false;
+                parseErrorCode = 1;
+                return commandInfo;
             }
             payload.stim_on = (stimOn == 1);
 
@@ -2031,23 +2054,24 @@ namespace Summit_Interface
             
             foreach (GroupNumber iGroup in Enum.GetValues(typeof(GroupNumber)))
             {
-                float thisGroupNum;
+                double thisGroupNum;
                 if (!ConvertEnumsToValues(iGroup.ToString(), "GroupNumber", out thisGroupNum))
                 {
-                    return false;
+                    parseErrorCode = 1;
+                    return commandInfo;
                 }
                 int iGroupInd = Convert.ToInt16(thisGroupNum);
 
                 commandInfo = theSummit.ReadStimGroup(iGroup, out groupSettings);
                 if (commandInfo.RejectCode != 0)
                 {
-                    return false;
+                    return commandInfo;
                 }
 
                 commandInfo = theSummit.ReadStimAmplitudeLimits(iGroup, out ampLimits);
                 if (commandInfo.RejectCode != 0)
                 {
-                    return false;
+                    return commandInfo;
                 }
 
                 //first get the program-indepdent configurations (pretty straight forward)
@@ -2073,10 +2097,11 @@ namespace Summit_Interface
                     //even when less than 4 are defined. It'll just put the defined ones first and set the rest as disabled).
                     //So I'm assuming disabled is equivalent to undefined.
                     enumName = groupSettings.Programs[iProg].IsEnabled.ToString();
-                    float enabled;
+                    double enabled;
                     if (!ConvertEnumsToValues(enumName, "ProgramEnables", out enabled))
                     {
-                        return false;
+                        parseErrorCode = 1;
+                        return commandInfo;
                     }
                     if (enabled==0)
                     {
@@ -2099,7 +2124,8 @@ namespace Summit_Interface
                             if (anode != -1)
                             {
                                 //an anode was already found, so we have two anodes which shouldn't happen
-                                return false;
+                                parseErrorCode = 3;
+                                return commandInfo;
                             }
                             anode = iElec;
                         }
@@ -2108,7 +2134,8 @@ namespace Summit_Interface
                             if (cathode != -1)
                             {
                                 //an cathode was already found, so we have two cathode which shouldn't happen
-                                return false;
+                                parseErrorCode = 4;
+                                return commandInfo;
                             }
                             cathode = iElec;
                         }
@@ -2117,7 +2144,8 @@ namespace Summit_Interface
                     //if either anode or cathode hasn't been found, then something is wrong, otherwise, just add to the list
                     if (anode == -1 || cathode == -1)
                     {
-                        return false;
+                        parseErrorCode = 5;
+                        return commandInfo;
                     }
                     payload.stim_config.anodes[iGroupInd].Add(Convert.ToUInt16(anode));
                     payload.stim_config.cathodes[iGroupInd].Add(Convert.ToUInt16(cathode));
@@ -2129,7 +2157,8 @@ namespace Summit_Interface
                     enumName = groupSettings.Programs[iProg].MiscSettings.ActiveRechargeRatio.ToString();
                     if (!ConvertEnumsToValues(enumName, "ActiveRechargeRatios", out enabled))
                     {
-                        return false;
+                        parseErrorCode = 1;
+                        return commandInfo;
                     }
                     payload.stim_config.active_recharge[iGroupInd].Add(enabled==1);
 
@@ -2147,7 +2176,7 @@ namespace Summit_Interface
             //finally get battery level
             payload.battery_level = Convert.ToUInt16(insGeneralInfo.BatteryStatus);
 
-            return true;
+            return commandInfo;
         }
 
 
