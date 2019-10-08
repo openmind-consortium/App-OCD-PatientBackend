@@ -791,10 +791,24 @@ namespace Summit_Interface
                     case "device_info":
                         //just send back a fixed defined payload since there's too mnay 
                         //variables to generate a random value for all of them
-                        returnMsg.payload.battery_level = 50;
-                        returnMsg.payload.sense_on = true;
-                        returnMsg.payload.stim_on = true;
-                        
+                        returnMsg.payload.battery_level = (ushort)random.Next(0, 101);
+                        if (random.Next(2) == 0)
+                        {
+                            returnMsg.payload.sense_on = true;
+                        }
+                        else
+                        {
+                            returnMsg.payload.sense_on = false;
+                        }
+                        if (random.Next(2) == 0)
+                        {
+                            returnMsg.payload.stim_on = true;
+                        }
+                        else
+                        {
+                            returnMsg.payload.stim_on = false;
+                        }
+
                         returnMsg.payload.sense_config.time_domain_on = true;
                         returnMsg.payload.sense_config.FFT_on = true;
                         returnMsg.payload.sense_config.accel_on = true;
