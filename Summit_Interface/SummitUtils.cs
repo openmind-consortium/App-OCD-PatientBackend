@@ -242,7 +242,7 @@ namespace Summit_Interface
             SummitSystem tempSummit = null;
             for (int i = 0; i < theSummitManager.GetKnownTelemetry().Count; i++)
             {
-                ManagerConnectStatus connectReturn = theSummitManager.CreateSummit(out tempSummit, theSummitManager.GetKnownTelemetry()[i], 
+                ManagerConnectStatus connectReturn = theSummitManager.CreateSummit(out theSummit, theSummitManager.GetKnownTelemetry()[i], 
                     ctmBeepEnables: (CtmBeepEnables.NoDeviceDiscovered | CtmBeepEnables.GeneralAlert | CtmBeepEnables.TelMLost));
 
                 // Write out the result
@@ -256,7 +256,7 @@ namespace Summit_Interface
             }
 
             // Make sure telemetry was connected to, if not fail
-            if (tempSummit == null)
+            if (theSummit == null)
             {
                 // inform user that CTM was not successfully connected to
                 Console.WriteLine("SummitConnect: Failed to connect to CTM, returning false...");
@@ -271,7 +271,7 @@ namespace Summit_Interface
                 List<DiscoveredDevice> discoveredDevices;
                 do
                 {
-                    tempSummit.OlympusDiscovery(out discoveredDevices);
+                    theSummit.OlympusDiscovery(out discoveredDevices);
                 } while (discoveredDevices.Count == 0);
 
                 // Report Discovery Results to User
@@ -292,7 +292,7 @@ namespace Summit_Interface
                 int i = 0;
                 do
                 {
-                    connectReturn = tempSummit.StartInsSession(discoveredDevices[0], out theWarnings, true);
+                    connectReturn = theSummit.StartInsSession(discoveredDevices[0], out theWarnings, true);
                     i++;
                 } while (theWarnings.HasFlag(ConnectReturn.InitializationError));
 
@@ -303,14 +303,14 @@ namespace Summit_Interface
                 if (connectReturn.RejectCode != 0)
                 {
                     Console.WriteLine("Summit Initialization: INS failed to connect");
-                    theSummitManager.DisposeSummit(tempSummit);
+                    theSummitManager.DisposeSummit(theSummit);
                     return false;
                 }
                 else
                 {
                     // Write out the warnings if they exist
                     Console.WriteLine("Summit Initialization: INS connected, warnings: " + theWarnings.ToString());
-                    theSummit = tempSummit;
+                    //theSummit = tempSummit;
 
                     APIReturnInfo success = theSummit.WriteTelemetryParameters(4, 4);
                     return true;

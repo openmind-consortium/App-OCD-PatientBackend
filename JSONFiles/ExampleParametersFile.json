@@ -12,10 +12,12 @@
     "QuitButton": "q",
 	"StimStatusButton": "s",
 	"StimConfigButton": "g",
+	"HideConsole": false,
+	"NoDeviceTesting": false,
 
     "Sense": {
         "comment_Channel_Definitions": "No more than two channels can be on a single bore. When configuring, channels on first bore will always be first. Can only have sampling rates of: 250, 500, and 1000 (Hz), packet period can be 30, 40, 50, 60, 70, 80, 90, or 100 (ms)",
-        "Enabled": true,
+        "Enabled": false,
         "SaveFileName": "SalineTest.txt",
         "BufferSize": 1000,
         "ZMQPort": 5555,
@@ -56,7 +58,7 @@
 
     "ManualStim": {
         "comment_ManualStim": "Cannot use same electrodes as sense and closed-loop stim? Stim amplitudes have a resolution of 0.1 mA, so any more significant digits past that will just be rounded. Similarly, pulse widths have a resolution of 10 us so numbers in the one's digit will just be rounded",
-        "Enabled": false,
+        "Enabled": true,
 
         "StartButton": "o",
         "StopButton": "p",

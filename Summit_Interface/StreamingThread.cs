@@ -26,7 +26,7 @@ using Newtonsoft.Json.Schema;
 namespace Summit_Interface
 {
     //enum of the different tasks for the threads
-    public enum ThreadType { sense, stim, dataSave, myRCS };
+    public enum ThreadType { sense, stim, dataSave, myRCpS };
 
     //Structure holding all the things we want to pass between threads (Make sure all of these are thread safe!)
     public struct ThreadResources
@@ -71,8 +71,8 @@ namespace Summit_Interface
                 case ThreadType.dataSave:
                     m_thread = new Thread(new ParameterizedThreadStart(SaveData));
                     break;
-                case ThreadType.myRCS:
-                    m_thread = new Thread(new ParameterizedThreadStart(MyRCS));
+                case ThreadType.myRCpS:
+                    m_thread = new Thread(new ParameterizedThreadStart(MyRCpS));
                     m_thread.SetApartmentState(ApartmentState.STA);
                     break;
             }
@@ -363,7 +363,7 @@ namespace Summit_Interface
             }
         }
 
-        public void MyRCS(object input)
+        public void MyRCpS(object input)
         {
             //cast to get the shared resources
             ThreadResources resources = (ThreadResources)input;
@@ -430,8 +430,12 @@ namespace Summit_Interface
                         continue;
                     }
 
+                    //create response
+                    MyRCSMsg returnMsg = new MyRCSMsg();
+
                     //check that the received message validates against the schema
                     JObject requestMsgObj;
+                    bool msgParsed = true;
                     try
                     {
                         requestMsgObj = JObject.Parse(requestMessage);
@@ -439,10 +443,19 @@ namespace Summit_Interface
                     catch
                     {
                         Console.WriteLine("Received a msg from MyRCpS program, but was unable to parse JSON");
-                        continue;
+                        msgParsed = false;
+                        requestMsgObj = null;
                     }
 
-                    bool msgValid = requestMsgObj.IsValid(messageSchema);
+                    bool msgValid;
+                    if (msgParsed)
+                    {
+                        msgValid = requestMsgObj.IsValid(messageSchema);
+                    }
+                    else
+                    {
+                        msgValid = false;
+                    }
 
                     if (msgValid)
                     {
@@ -454,9 +467,16 @@ namespace Summit_Interface
                         resources.timingLogFile.WriteLine(receivedMsg.message + " " + timestamp);
 
                         //initialize return message object
-                        MyRCSMsg returnMsg = new MyRCSMsg();
                         returnMsg.message = receivedMsg.message;
                         returnMsg.message_type = "result";
+
+                        //first make sure INS/CTM is connected
+                        if (resources.summit == null)
+                        {
+                            returnMsg.payload.success = false;
+                            returnMsg.payload.error_code = 3;
+                            returnMsg.payload.error_message = "Initial CTM connection not established";
+                        }
 
                         //determine what message it is
                         switch (receivedMsg.message)
@@ -688,8 +708,8 @@ namespace Summit_Interface
                                     else
                                     {
                                         returnMsg.payload.success = false;
-                                        returnMsg.payload.error_code = 4;
-                                        returnMsg.payload.error_message = "Unable to connect to the INS";
+                                        returnMsg.payload.error_code = 10;
+                                        returnMsg.payload.error_message = "Reconnection attempt failed";
                                     }
                                     resources.summit = tmpSummit;
                                 }
@@ -705,27 +725,37 @@ namespace Summit_Interface
 
                         }
 
-                        if (!testing)
-                        {
-                            string responseMsgText = JsonConvert.SerializeObject(returnMsg);
-                            JObject responseMsgObj = JObject.Parse(responseMsgText);
-
-                            if (responseMsgObj.IsValid(messageSchema))
-                            {
-                                myRCSSocket.SendFrame(responseMsgText);
-                            }
-                            else
-                            {
-                                Console.WriteLine("Error: response message, does not conform to the schema, not sending response");
-                            }
-                        }
-
                     }
-                    else
+                    else if (msgParsed)
                     {
-                        //message not valid, post error on console and don't respond to the request
+                        //message was parsed does not conform to schema
                         Console.WriteLine("Error: received JSON message from MyRC+S that doesn't conform to schema!");
-                        continue;
+                        returnMsg.message = "device_info";
+                        returnMsg.payload.success = false;
+                        returnMsg.payload.error_code = 2;
+                        returnMsg.payload.error_message = "received JSON message does not conform to schema";
+                    } else
+                    {
+                        //message wasn't even able to be parsed
+                        returnMsg.message = "device_info";
+                        returnMsg.payload.success = false;
+                        returnMsg.payload.error_code = 1;
+                        returnMsg.payload.error_message = "Unable to parse JSON message";
+                    }
+
+                    if (!testing)
+                    {
+                        string responseMsgText = JsonConvert.SerializeObject(returnMsg);
+                        JObject responseMsgObj = JObject.Parse(responseMsgText);
+
+                        if (responseMsgObj.IsValid(messageSchema))
+                        {
+                            myRCSSocket.SendFrame(responseMsgText);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Error: response message, does not conform to the schema, not sending response");
+                        }
                     }
 
                 }
@@ -739,7 +769,73 @@ namespace Summit_Interface
 
         public void parseError(APIReturnInfo summitInfo, int parseErrorCode, ref MyRCSMsg msg)
         {
-            
+
+            msg.payload.success = false;
+
+            //error originating from the API
+            if (summitInfo.RejectCodeType == typeof(Medtronic.SummitAPI.Classes.APIRejectCodes))
+            {
+                switch (summitInfo.RejectCode)
+                {
+                    case 11:
+                        //Connected to CTM but hasn't done initial connection to INS yet
+                        msg.payload.error_code = 4;
+                        msg.payload.error_message = "Initial INS connection not established";
+                        break;
+                }
+            }
+
+            //error originating from CTM
+            if (summitInfo.RejectCodeType == typeof(Medtronic.TelemetryM.CtmProtocol.Commands.CommandResponseCodes))
+            {
+                switch (summitInfo.RejectCode)
+                {
+                    case 131:
+                    case 132:
+                        //CTM still connected, INS disconnected
+                        msg.payload.error_code = 5;
+                        msg.payload.error_message = "INS connection lost";
+                        break;
+                }
+            }
+
+            //error originating from CTM (of a different sort?)
+            if (summitInfo.RejectCodeType == typeof(Medtronic.TelemetryM.InstrumentReturnCode))
+            {
+                switch (summitInfo.RejectCode)
+                {
+                    case 7:
+                        //disconnected through timeout (usually only happens when debugging), not sure which is disconnected
+
+                        break;
+
+                    case 9:
+                        //CTM disconnected (probably, technically it's a CTM timeout)
+                        msg.payload.error_code = 6;
+                        msg.payload.error_message = "CTM connection lost";
+                        break;
+                }
+            }
+
+            //error originating from INS?
+            if (summitInfo.RejectCodeType == typeof(Medtronic.NeuroStim.Olympus.Commands.MasterRejectCode))
+            {
+                switch (summitInfo.RejectCode)
+                {
+                    case 55553:
+                        //battery too low to turn sense on
+                        msg.payload.error_code = 7;
+                        msg.payload.error_message = "Battery too low for sense";
+                        break;
+
+                    case 8212:
+                        //battery too low to turn stim on
+                        msg.payload.error_code = 8;
+                        msg.payload.error_message = "Battery too low for stim";
+                        break;
+                }
+            }
+
         }
 
 
