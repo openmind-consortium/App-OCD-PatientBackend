@@ -44,6 +44,7 @@ namespace Summit_Interface
 
         //Summit API object
         static SummitSystem m_summit;
+        static SummitSystemWrapper m_summitWrapper;
 
         //sweeper class for sweeping through stim parameters
         static StimSweeper m_singlePulseSweeper;
@@ -127,6 +128,7 @@ namespace Summit_Interface
             m_FFTBuffer = new INSBuffer(1, bufferSize);
             m_BPBuffer = new INSBuffer(numSenseChans * 2, bufferSize);
             m_dataSavingBuffer = new INSBuffer(numSenseChans, bufferSize);
+            m_summitWrapper = new SummitSystemWrapper();
 
             //set up files
             m_dataFileName = parameters.GetParam("Sense.SaveFileName", typeof(string));
@@ -174,7 +176,7 @@ namespace Summit_Interface
             ThreadResources sharedResources = new ThreadResources();
             sharedResources.TDbuffer = m_TDBuffer;
             sharedResources.savingBuffer = m_dataSavingBuffer;
-            sharedResources.summit = m_summit;
+            sharedResources.summitWrapper = m_summitWrapper;
             sharedResources.summitManager = theSummitManager;
             sharedResources.saveDataFileName = m_dataFileName;
             sharedResources.samplingRate = doSensing ? samplingRate : TdSampleRates.Disabled;
@@ -190,9 +192,9 @@ namespace Summit_Interface
             // Initialize the Summit Interface
             Console.WriteLine();
             Console.WriteLine("Creating Summit Interface...");
-
+            Thread.Sleep(5000);
             // Connect to CTM and INS
-            while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit))
+            while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper))
             {
                 // Failed to connect, keep retrying
                 Console.WriteLine("Unable to establish connection, press 'r' to retry, or anything else to exit");
@@ -225,6 +227,38 @@ namespace Summit_Interface
                 Console.WriteLine("Unable to read battery level");
             }
             Console.WriteLine();
+
+            /*
+            System.IO.StreamWriter testingFile = new System.IO.StreamWriter("BatteryTesting.txt");
+            string message;
+            while (true)
+            {
+                commandInfo = m_summit.StimChangeTherapyOff(false);
+                message = "Stim off \t " + commandInfo.RejectCodeType.ToString() +
+                    '\t' + commandInfo.RejectCode.ToString() + '\t' + String.Format("{0:F}", DateTime.Now);
+                testingFile.WriteLine(message);
+                Console.WriteLine(message);
+                if (commandInfo.RejectCode != 0)
+                {
+                    break;
+                }
+
+                Thread.Sleep(1000);
+
+                commandInfo = m_summit.StimChangeTherapyOn();
+                message = "Stim on \t " + commandInfo.RejectCodeType.ToString() +
+                    '\t' + commandInfo.RejectCode.ToString() + '\t' + String.Format("{0:F}", DateTime.Now);
+                testingFile.WriteLine(message);
+                Console.WriteLine(message);
+                if (commandInfo.RejectCode != 0)
+                {
+                    break;
+                }
+
+                Thread.Sleep(1000);
+            }
+            testingFile.Close();
+            */
 
             //run impedance test
             if (parameters.GetParam("RunImpedanceTest", typeof(bool)))

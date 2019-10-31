@@ -209,7 +209,7 @@ namespace Summit_Interface
         ///
         /// <returns>   True if it succeeds, false if it fails. </returns>
         ///-------------------------------------------------------------------------------------------------
-        public static bool SummitConnect(SummitManager theSummitManager, ref SummitSystem theSummit)
+        public static bool SummitConnect(SummitManager theSummitManager, ref SummitSystem theSummit, ref SummitSystemWrapper summitWrapper)
         {
             // Bond with any CTMs plugged in over USB
             Console.WriteLine("Checking USB for unbonded CTMs. Please make sure they are powered on.");
@@ -247,6 +247,9 @@ namespace Summit_Interface
 
                 // Write out the result
                 Console.WriteLine("Create Summit Result: " + connectReturn.ToString());
+
+                //add summit system to wrapper
+                summitWrapper.setSummit(ref theSummit);
 
                 // Break if it failed successful
                 if (connectReturn == ManagerConnectStatus.Success)
