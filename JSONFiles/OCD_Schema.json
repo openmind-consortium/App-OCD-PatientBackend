@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Patient-facing/summit-interface data passing schema",
-  "description": "v0.04",
+  "description": "v0.05",
   "examples": [
     
     {
@@ -193,6 +193,7 @@
             "properties": { "message": { "const": "battery" } }
           },
 
+          "then": {
             "properties": {
 
               "payload": {
