@@ -555,60 +555,6 @@ namespace Summit_Interface
                                     }
                                     break;
 
-                                case "sense_status":
-                                    if (!testing)
-                                    {
-                                        //read sense status from INS
-                                        SensingState theSensingState;
-                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.ReadSensingState(out theSensingState);
-
-                                        if (commandInfo.RejectCode == 0)
-                                        {
-                                            bool timeDomainSenseOn = theSensingState.State == SenseStates.LfpSense;
-                                            returnMsg.payload.sense_on = timeDomainSenseOn;
-                                        }
-                                        else
-                                        {
-                                            parseError(commandInfo, 0, ref returnMsg);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
-                                        {
-                                            continue;
-                                        }
-                                    }
-                                    break;
-
-                                case "stim_status":
-                                    if (!testing)
-                                    {
-                                        //read stim status from INS
-                                        GeneralInterrogateData generalInfo;
-                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.ReadGeneralInfo(out generalInfo);
-                                        if (commandInfo.RejectCode == 0)
-                                        {
-                                            bool stimOn = generalInfo.TherapyStatusData.TherapyStatus == InterrogateTherapyStatusTypes.TherapyActive;
-                                            returnMsg.payload.stim_on = stimOn;
-                                        }
-                                        else
-                                        {
-                                            parseError(commandInfo, 0, ref returnMsg);
-                                        }
-
-                                    }
-                                    else
-                                    {
-                                        //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
-                                        {
-                                            continue;
-                                        }
-                                    }
-                                    break;
-
                                 case "sense_on":
                                     if (!testing)
                                     {
@@ -766,6 +712,8 @@ namespace Summit_Interface
 
             msg.payload.success = false;
 
+            bool errorParsed = false;
+
             //error originating from the API
             if (summitInfo.RejectCodeType == typeof(Medtronic.SummitAPI.Classes.APIRejectCodes))
             {
@@ -775,6 +723,7 @@ namespace Summit_Interface
                         //Connected to CTM but hasn't done initial connection to INS yet
                         msg.payload.error_code = 4;
                         msg.payload.error_message = "Initial INS connection not established";
+                        errorParsed = true;
                         break;
                 }
             }
@@ -789,6 +738,7 @@ namespace Summit_Interface
                         //CTM still connected, INS disconnected
                         msg.payload.error_code = 5;
                         msg.payload.error_message = "INS connection lost";
+                        errorParsed = true;
                         break;
                 }
             }
@@ -807,6 +757,7 @@ namespace Summit_Interface
                         //CTM disconnected (probably, technically it's a CTM timeout)
                         msg.payload.error_code = 6;
                         msg.payload.error_message = "CTM connection lost";
+                        errorParsed = true;
                         break;
                 }
             }
@@ -820,6 +771,7 @@ namespace Summit_Interface
                         //battery too low to turn sense on
                         msg.payload.error_code = 7;
                         msg.payload.error_message = "Battery too low for sense";
+                        errorParsed = true;
                         break;
 
                     case 8212:
@@ -827,9 +779,17 @@ namespace Summit_Interface
                         //battery too low to turn stim on
                         msg.payload.error_code = 8;
                         msg.payload.error_message = "Battery too low for stim";
+                        errorParsed = true;
                         break;
                 }
             }
+
+            if (errorParsed == false)
+            {
+                msg.payload.error_code = 9;
+                msg.payload.error_message = "Unable to determine what the error was";
+            }
+
 
         }
 
@@ -945,30 +905,6 @@ namespace Summit_Interface
                         returnMsg.payload.stim_config.active_recharge = new List<List<bool>>() {
                             new List<bool>() { true, true, true, true }, new List<bool>() { false, false }, new List<bool>(), new List<bool>() };
 
-                        break;
-
-                    case "sense_status":
-                        //randomly send back sense is on or sense is off
-                        if (random.Next(2) == 0)
-                        {
-                            returnMsg.payload.sense_on = true;
-                        }
-                        else
-                        {
-                            returnMsg.payload.sense_on = false;
-                        }
-                        break;
-
-                    case "stim_status":
-                        //randomly send back stim is on or stim is off
-                        if (random.Next(2) == 0)
-                        {
-                            returnMsg.payload.stim_on = true;
-                        }
-                        else
-                        {
-                            returnMsg.payload.stim_on = false;
-                        }
                         break;
 
                     case "sense_on":

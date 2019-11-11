@@ -6,7 +6,6 @@
 | 4 		| Initial INS connection not established 		| Initial connection to the CTM has been established, but the initial connection to the INS has not been established yet |
 | 5 		| INS connection lost 					| CTM still connected, but INS disconnected |
 | 6 		| CTM connection lost 					| CTM disconnected (turned off or out of range), INS connection unknown |
-| 7 		| CTM connection lost 					| CTM disconnected (turned off or out of range), INS connection unknown |
-| 8 		| Battery too low for sense 				| Failed to turn on sensing because battery too low |
-| 9 		| Battery too low for stim				| Failed to turn on stim because battery too low |
-| 10 		| Reconnection attempt failed				| Received reconnection command, and attempted to restablish connection to CTM and INS, but it failed |
+| 7 		| Battery too low for sense 				| Failed to turn on sensing because battery too low |
+| 8 		| Battery too low for stim				| Failed to turn on stim because battery too low |
+| 9		| Unknown error						| Unable to determine what the error was |
