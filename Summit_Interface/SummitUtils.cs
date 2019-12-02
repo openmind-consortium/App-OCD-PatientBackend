@@ -1679,7 +1679,7 @@ namespace Summit_Interface
                         return false;
                     }
 
-                    if (enumName == "floating")
+                    if (enumName == "Floating")
                     {
                         value = 16;
                         return true;
