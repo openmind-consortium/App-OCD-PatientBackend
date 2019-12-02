@@ -70,7 +70,7 @@ namespace Summit_Interface
         static bool m_singlePulseSweeping;
         static bool m_stimBurstSweeping;
 
-        static bool m_exitProgram = false;
+        static endProgramWrapper m_exitProgram;
 
         //Main program
         [STAThread]
@@ -174,6 +174,7 @@ namespace Summit_Interface
             bool doSensing = parameters.GetParam("Sense.Enabled", typeof(bool));
             TdSampleRates samplingRate = TdSampleRates.Disabled; //default disabled, if we are sensing, we'll set the sampling rate below
             bool noDeviceTesting = parameters.GetParam("NoDeviceTesting", typeof(bool));
+            m_exitProgram = new endProgramWrapper();
 
             ThreadResources sharedResources = new ThreadResources();
             sharedResources.TDbuffer = m_TDBuffer;
@@ -185,7 +186,7 @@ namespace Summit_Interface
             sharedResources.timingLogFile = m_timingLogFile;
             sharedResources.parameters = parameters;
             sharedResources.testMyRCPS = noDeviceTesting;
-            sharedResources.exitProgram = m_exitProgram;
+            sharedResources.endProgram = m_exitProgram;
 
             //now, establish connection to MyRC+S program
             StreamingThread myRCSThread = new StreamingThread(ThreadType.myRCpS);
@@ -869,6 +870,8 @@ namespace Summit_Interface
 
             APIReturnInfo bufferInfo = new APIReturnInfo();
 
+            bool keepCheckingKeys = true;
+
             while (thekey.KeyChar.ToString() != quitKey)
             {
 
@@ -1146,11 +1149,17 @@ namespace Summit_Interface
                 //non-ideal since it adds some delay to key presses
                 while (Console.KeyAvailable == false)
                 {
-                    if (m_exitProgram)
+                    if (m_exitProgram.end)
                     {
+                        keepCheckingKeys = false;
                         break;
                     }
                     Thread.Sleep(250);
+                }
+
+                if (!keepCheckingKeys)
+                {
+                    break;
                 }
 
                 thekey = Console.ReadKey(true);

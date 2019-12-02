@@ -42,7 +42,7 @@ namespace Summit_Interface
         public ThreadsafeFileStream timingLogFile { get; set; } //thread-safe file for writing debug information to
         public INSParameters parameters { get; set; } //configuration parameters read from JSON file. Is read only so is threadsafe
         public bool testMyRCPS { get; set; } //if we are running code in test mode for testing connection to MyRC+S program
-        public bool exitProgram { get; set; } //to tell main program to quit
+        public endProgramWrapper endProgram { get; set; } //to tell main program to quit
     }
 
     public class SummitSystemWrapper
@@ -62,6 +62,17 @@ namespace Summit_Interface
             isInitialized = true;
         }
     }
+
+    public class endProgramWrapper
+    {
+        public bool end;
+
+        public endProgramWrapper()
+        {
+            end = false;
+        }
+    }
+
 
     //Thread class for multithreading the streaming functions to and from Open-Ephys and for saving data to disk
     public class StreamingThread
@@ -283,7 +294,7 @@ namespace Summit_Interface
                                 Console.WriteLine("Error in turning on flexor electrodes!" + returnInfoBuffer.Descriptor);
                             }
                             break;
-
+                            
                         case "2":
                             stimClass = 2;
                             Console.WriteLine("2");
@@ -396,9 +407,9 @@ namespace Summit_Interface
             //random number generator for test responses
             Random random = new Random();
 
-            Thread.Sleep(60000);
-            resources.exitProgram = true;
-
+            //Thread.Sleep(10000);
+            //resources.endProgram.end = true;
+            
             using (ResponseSocket myRCSSocket = new ResponseSocket())
             {
                 myRCSSocket.Bind("tcp://localhost:5556");
@@ -663,6 +674,11 @@ namespace Summit_Interface
                                             continue;
                                         }
                                     }
+                                    break;
+
+                                case "quit":
+                                    //tell main program to quit
+                                    resources.endProgram.end = true;
                                     break;
 
                             }
