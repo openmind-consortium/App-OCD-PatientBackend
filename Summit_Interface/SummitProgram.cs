@@ -70,6 +70,8 @@ namespace Summit_Interface
         static bool m_singlePulseSweeping;
         static bool m_stimBurstSweeping;
 
+        static bool m_exitProgram = false;
+
         //Main program
         [STAThread]
         static void Main(string[] args)
@@ -183,6 +185,7 @@ namespace Summit_Interface
             sharedResources.timingLogFile = m_timingLogFile;
             sharedResources.parameters = parameters;
             sharedResources.testMyRCPS = noDeviceTesting;
+            sharedResources.exitProgram = m_exitProgram;
 
             //now, establish connection to MyRC+S program
             StreamingThread myRCSThread = new StreamingThread(ThreadType.myRCpS);
@@ -1139,7 +1142,19 @@ namespace Summit_Interface
                 Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                 bufferInfo = new APIReturnInfo();
 
+                //quick fix to allow child threads to exit main thread, change the loop so that it polls
+                //non-ideal since it adds some delay to key presses
+                while (Console.KeyAvailable == false)
+                {
+                    if (m_exitProgram)
+                    {
+                        break;
+                    }
+                    Thread.Sleep(250);
+                }
+
                 thekey = Console.ReadKey(true);
+
 
             }
 

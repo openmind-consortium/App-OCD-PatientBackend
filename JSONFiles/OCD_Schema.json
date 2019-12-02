@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Patient-facing/summit-interface data passing schema",
-  "description": "v0.05",
+  "description": "v0.06",
   "examples": [
     
     {
@@ -176,7 +176,7 @@
     "message": {
       "description": "The specific request/command/result",
       "type": "string",
-      "enum": ["battery", "device_info", "sense_status", "stim_status", "sense_on", "sense_off", "stim_on", "stim_off"]
+      "enum": ["battery", "device_info", "sense_on", "sense_off", "stim_on", "stim_off", "quit"]
     }
   },
 
@@ -212,58 +212,6 @@
                 "required": [ "battery_level" ]
 
               }
-            }
-          }
-        },
-
-        {
-          "if": {
-            "properties": { "message": { "const": "sense_status" } }
-          },
-
-          "then": {
-            "properties": {
-
-              "payload": {
-                "description": "For sense status requests, use this payload structure",
-                "type": "object",
-                "properties": {
-
-                  "sense_on": {
-                    "description": "Whether sensing is turned on or not",
-                    "type": "boolean"
-                  }
-
-                },
-                "required": [ "sense_on" ]
-              }
-
-            }
-          }
-        },
-
-        {
-          "if": {
-            "properties": { "message": { "const": "stim_status" } }
-          },
-
-          "then": {
-            "properties": {
-
-              "payload": {
-                "description": "For stim status requests, use this payload structure",
-                "type": "object",
-                "properties": {
-
-                  "stim_on": {
-                    "description": "Whether stim is turned on or not",
-                    "type": "boolean"
-                  }
-
-                },
-                "required": [ "stim_on" ]
-              }
-
             }
           }
         },

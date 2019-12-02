@@ -17,21 +17,21 @@
 
     "Sense": {
         "comment_Channel_Definitions": "No more than two channels can be on a single bore. When configuring, channels on first bore will always be first. Can only have sampling rates of: 250, 500, and 1000 (Hz), packet period can be 30, 40, 50, 60, 70, 80, 90, or 100 (ms)",
-        "Enabled": false,
+        "Enabled": true,
         "SaveFileName": "SalineTest.txt",
         "BufferSize": 1000,
         "ZMQPort": 5555,
         "InterpolateMissingPackets": false,
-        "SamplingRate": 500,
+        "SamplingRate": 1000,
         "PacketPeriod": 50,
-        "nChans": 4,
-        "Anode": [ 7, 0, 9, 11 ],
-        "Cathode": [ 6, 1, 10, 12 ],
+        "nChans": 2,
+        "Anode": [ 7, 0],
+        "Cathode": [ 6, 1 ],
 
         "comment_Filters": "Stage one low pass can only be: 450, 100, or 50 (Hz). Stage two low pass can only be: 1700, 350, 160, or 100 (Hz). High pass can only be: 0.85, 1.2, 3.3, or 8.6 (Hz)",
-        "LowPassCutoffStage1": [ 450, 450, 450, 450 ],
-        "LowPassCutoffStage2": [ 1700, 1700, 1700, 1700 ],
-        "HighPassCutoff": [ 0.85, 0.85, 0.85, 0.85 ],
+        "LowPassCutoffStage1": [ 450, 450 ],
+        "LowPassCutoffStage2": [ 1700, 1700 ],
+        "HighPassCutoff": [ 0.85, 0.85 ],
 
         "FFT": {
             "comment_FFT_Parameters": "FFT Size can be: 64, 256, or 1024 samples, Hanning window load can be: 25, 50, or 100 (%)",
@@ -47,12 +47,12 @@
 
         "BandPower": {
             "comment_BandPower": "must be same number as nChans, and the position in the array corresponds to the position for the sense chans",
-            "FirstBandEnabled": [ false, true, false, true ],
-            "SecondBandEnabled": [ true, false, true, false ],
-            "FirstBandLower": [ 10, 20, 30, 40 ],
-            "FirstBandUpper": [ 11, 21, 31, 41 ],
-            "SecondBandLower": [ 12, 22, 32, 42 ],
-            "SecondBandUpper": [ 13, 23, 33, 43 ]
+            "FirstBandEnabled": [ true, true ],
+            "SecondBandEnabled": [ true, true ],
+            "FirstBandLower": [ 10, 20 ],
+            "FirstBandUpper": [ 11, 21 ],
+            "SecondBandLower": [ 12, 22 ],
+            "SecondBandUpper": [ 13, 23 ]
         }
     },
 
