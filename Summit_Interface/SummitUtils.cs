@@ -248,12 +248,11 @@ namespace Summit_Interface
                 // Write out the result
                 Console.WriteLine("Create Summit Result: " + connectReturn.ToString());
 
-                //add summit system to wrapper
-                summitWrapper.setSummit(ref theSummit);
-
-                // Break if it failed successful
+                // Break if successful
                 if (connectReturn == ManagerConnectStatus.Success)
                 {
+                    //add summit system to wrapper
+                    summitWrapper.setSummit(ref theSummit);
                     break;
                 }
             }
