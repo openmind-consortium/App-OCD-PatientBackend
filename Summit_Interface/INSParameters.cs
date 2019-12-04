@@ -76,6 +76,7 @@ namespace Summit_Interface
                 new parameterField("StimConfigButton",                  typeof(string),     null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("HideConsole",                       typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("NoDeviceTesting",                   typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
+                new parameterField("TelemetryMode",                     typeof(long),       null,                       null,               false,  false,  null,                   new double[2]{3, 4},    null,                       null),
 
                 new parameterField("Sense",                             null,               null,                       null,               true,   false,  null,                   null,                   null,                       null),
                 new parameterField("Enabled",                           typeof(bool),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),

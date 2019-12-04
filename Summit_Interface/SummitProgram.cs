@@ -81,7 +81,12 @@ namespace Summit_Interface
             //First, load in configuration parameters from JSON file
             string parametersFileName;
 
-            if (File.Exists("../../../../JSONFiles/ExampleParametersFile.json"))
+            if (File.Exists("C:/JSONFiles/SIPConfig.json"))
+            {
+                //load in frome default file if it exists
+                parametersFileName = "C:/JSONFiles/SIPConfig.json";
+            }
+            else if (File.Exists("../../../../JSONFiles/ExampleParametersFile.json"))
             {
                 //load in frome default file if it exists
                 parametersFileName = "../../../../JSONFiles/ExampleParametersFile.json";
@@ -197,8 +202,10 @@ namespace Summit_Interface
             Console.WriteLine();
             Console.WriteLine("Creating Summit Interface...");
             Thread.Sleep(5000);
+            ushort mode = (ushort)parameters.GetParam("TelemetryMode", typeof(int));
+
             // Connect to CTM and INS
-            while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper))
+            while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper, mode))
             {
                 // Failed to connect, keep retrying
                 Console.WriteLine("Unable to establish connection, press 'r' to retry, or anything else to exit");

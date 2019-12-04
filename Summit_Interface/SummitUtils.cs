@@ -209,7 +209,7 @@ namespace Summit_Interface
         ///
         /// <returns>   True if it succeeds, false if it fails. </returns>
         ///-------------------------------------------------------------------------------------------------
-        public static bool SummitConnect(SummitManager theSummitManager, ref SummitSystem theSummit, ref SummitSystemWrapper summitWrapper)
+        public static bool SummitConnect(SummitManager theSummitManager, ref SummitSystem theSummit, ref SummitSystemWrapper summitWrapper, ushort teleMode)
         {
             // Bond with any CTMs plugged in over USB
             Console.WriteLine("Checking USB for unbonded CTMs. Please make sure they are powered on.");
@@ -242,7 +242,7 @@ namespace Summit_Interface
             SummitSystem tempSummit = null;
             for (int i = 0; i < theSummitManager.GetKnownTelemetry().Count; i++)
             {
-                ManagerConnectStatus connectReturn = theSummitManager.CreateSummit(out theSummit, theSummitManager.GetKnownTelemetry()[i], 
+                ManagerConnectStatus connectReturn = theSummitManager.CreateSummit(out theSummit, theSummitManager.GetKnownTelemetry()[i], telemetryMode: teleMode,
                     ctmBeepEnables: (CtmBeepEnables.NoDeviceDiscovered | CtmBeepEnables.GeneralAlert | CtmBeepEnables.TelMLost));
 
                 // Write out the result
