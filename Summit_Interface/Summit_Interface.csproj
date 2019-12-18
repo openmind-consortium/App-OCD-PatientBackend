@@ -108,6 +108,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AsyncSummit.cs" />
     <Compile Include="INSBuffer.cs" />
     <Compile Include="INSParameters.cs" />
     <Compile Include="StimSweeper.cs" />

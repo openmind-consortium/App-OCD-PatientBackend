@@ -208,10 +208,13 @@ namespace Summit_Interface
             while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper, mode))
             {
                 // Failed to connect, keep retrying
-                Console.WriteLine("Unable to establish connection, press 'r' to retry, or anything else to exit");
-                ConsoleKeyInfo retryKey = Console.ReadKey();
+                //Console.WriteLine("Unable to establish connection, press 'r' to retry, or anything else to exit");
+                //ConsoleKeyInfo retryKey = Console.ReadKey();
 
-                if (retryKey.KeyChar.ToString() != "r")
+                //if (retryKey.KeyChar.ToString() != "r")
+
+                Console.WriteLine("Unable to establish connection, retrying...");
+                if (m_exitProgram.end)
                 {
                     theSummitManager.Dispose();
                     return;
@@ -830,9 +833,10 @@ namespace Summit_Interface
 
             ////Start stim control (user control)=============================================
             Console.WriteLine();
-            Console.WriteLine("Finished setup, giving stim control over to user. Press any key to continue.");
+            Console.WriteLine("Finished setup, giving stim control over to user.");
             Console.WriteLine();
-            ConsoleKeyInfo thekey = Console.ReadKey();
+            //ConsoleKeyInfo thekey = Console.ReadKey();
+            ConsoleKeyInfo thekey = new ConsoleKeyInfo();
 
             string quitKey = parameters.GetParam("QuitButton", typeof(string));
             string stimStatusKey = parameters.GetParam("StimStatusButton", typeof(string));
