@@ -681,6 +681,58 @@ namespace Summit_Interface
                                     resources.endProgram.end = true;
                                     break;
 
+                                case "stim_change":
+                                    if (!testing)
+                                    {
+                                        //get which parameter to change
+
+                                        //get which group to change
+
+                                        //get which program to change
+
+                                        //calculate how much to increment/decrement by to get to the desired value
+
+                                        //do the stim change
+                                        APIReturnInfo commandInfo = new APIReturnInfo();
+                                        switch (receivedMsg.payload.stim_parameter)
+                                            {
+                                            case "amplitude":
+                                                commandInfo = resources.summitWrapper.summit.StimChangeTherapyOff(true);
+                                                break;
+
+                                            case "frequency":
+                                                commandInfo = resources.summitWrapper.summit.StimChangeTherapyOff(true);
+                                                break;
+
+                                            case "pulse_width":
+                                                commandInfo = resources.summitWrapper.summit.StimChangeTherapyOff(true);
+                                                break;
+                                        }
+
+
+                                        //log to events
+
+                                        //send result of command back
+                                        if (commandInfo.RejectCode == 0)
+                                        {
+                                            returnMsg.payload.success = true;
+                                        }
+                                        else
+                                        {
+                                            parseError(commandInfo, 0, ref returnMsg);
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        //For testing, send back some pre-defined responses
+                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                        {
+                                            continue;
+                                        }
+                                    }
+                                    break;
+
                             }
                         }
 
@@ -859,7 +911,7 @@ namespace Summit_Interface
                         break;
 
                     case "device_info":
-                        //just send back a fixed defined payload since there's too mnay 
+                        //just send back a fixed defined payload since there's too many 
                         //variables to generate a random value for all of them
                         returnMsg.payload.battery_level = (ushort)random.Next(0, 101);
                         if (random.Next(2) == 0)
@@ -995,6 +1047,12 @@ namespace Summit_Interface
                 public bool stim_on { get; set; }
                 public SenseInfo sense_config { get; set; }
                 public StimInfo stim_config { get; set; }
+                public string stim_parameter { get; set; }
+                public UInt16 stim_group { get; set; }
+                public UInt16 stim_program { get; set; }
+                public double stim_value { get; set; }
+                public bool use_ramp { get; set; }
+
 
                 public Payload()
                 {
@@ -1006,6 +1064,11 @@ namespace Summit_Interface
                     stim_on = true;
                     sense_config = new SenseInfo();
                     stim_config = new StimInfo();
+                    stim_parameter = "";
+                    stim_group = 0;
+                    stim_program = 0;
+                    stim_value = 0;
+                    use_ramp = true;
                 }
                 
                 public class SenseInfo
