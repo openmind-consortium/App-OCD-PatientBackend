@@ -9,3 +9,4 @@
 | 7 		| Battery too low for sense 				| Failed to turn on sensing because battery too low |
 | 8 		| Battery too low for stim				| Failed to turn on stim because battery too low |
 | 9		| Unknown error						| Unable to determine what the error was |
+| 10		| Error in parsing device info				| Unexpected error occured when parsing device info into return JSON message |

@@ -684,9 +684,25 @@ namespace Summit_Interface
                                 case "stim_change":
                                     if (!testing)
                                     {
-                                        //get which parameter to change
+                                        APIReturnInfo commandInfo;
 
                                         //get which group to change
+                                        try
+                                        {
+                                            GroupNumber groupToChange = (GroupNumber)Enum.Parse(typeof(GroupNumber),
+                                                "Group" + receivedMsg.payload.stim_group.ToString());
+                                        }
+                                        catch
+                                        {
+
+                                        }
+
+                                        //see if group to change is the same as current active group
+                                        GeneralInterrogateData insGeneralInfo;
+                                        commandInfo = resources.summitWrapper.summit.ReadGeneralInfo(out insGeneralInfo);
+
+                                        ActiveGroup activeGroup = insGeneralInfo.TherapyStatusData.ActiveGroup;
+
 
                                         //get which program to change
 
@@ -784,6 +800,39 @@ namespace Summit_Interface
             msg.payload.success = false;
 
             bool errorParsed = false;
+
+            //first see if the error was happening in the SummitInterface side rather than the hardward side
+            if (parseErrorCode != 0)
+            {
+
+                switch (parseErrorCode)
+                {
+                    case 1:
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                        // 1 - Error in parsing Enums
+                        // 2 - # of power bands != # of time domain channels 
+                        // 3 - found two anodes for a stim program
+                        // 4 - found two cathodes for a stim program
+                        // 5 - couldn't find anode or cathode for a stim program 
+                        msg.payload.error_code = 10;
+                        msg.payload.error_message = "Error in parsing device info";
+                        errorParsed = true;
+                        break;
+
+                    case 6:
+                        //# of power bands != # of time domain channels 
+                        msg.payload.error_code = 10;
+                        msg.payload.error_message = "Inconsistent power band channel number from device info";
+                        errorParsed = true;
+                        break;
+
+                }
+                return;
+
+            }
 
             //error originating from the API
             if (summitInfo.RejectCodeType == typeof(Medtronic.SummitAPI.Classes.APIRejectCodes))
