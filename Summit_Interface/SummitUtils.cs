@@ -2182,9 +2182,131 @@ namespace Summit_Interface
         }
 
 
+        ///-------------------------------------------------------------------------------------------------
+        /// <summary>   Change frequency, amplitude, or PW of a specific group/program. </summary>
+        ///
+        /// <param name="theSummit">        Summit system object. </param>
+        /// <param name="targetGroup">      The group to do the change on. </param>
+        /// <param name="programToChange">       The program to do the change on. </param>
+        /// <param name="parameter">        Which parameter to change (amp, freq, or PW). </param>
+        /// <param name="targetValue">      The value to change the parameter to. </param>
+        /// <param name="useSenseFriendly"> If parameter is freq, whether to only use sense friendly
+        ///                                 rates or not. </param>
+        /// <param name="parseErrorCode">   Indicates whether there was an error in the parsing of the
+        ///                                 data from the INS or from the inputted parameters
+        ///                                 (rather than an error in talking to the INS). 
+        ///                                 0 - No error in parsing (though still could have INS error)
+        ///                                 6 - Error parsing target group
+        ///                                 7 - target program not within 0-3
+        ///                                 8 - parameter is not "frequency", "amplitude", or "pulse_width"
+        /// 
+        /// <returns>   The summit error code (which could be no error). </returns>
+        ///-------------------------------------------------------------------------------------------------
+        public static APIReturnInfo ChangeStimParameter(SummitSystem theSummit, int targetGroup, int programToChange,
+            string parameter, double targetValue, bool useSenseFriendly, out int parseErrorCode, out double? newValue)
+        {
+
+            APIReturnInfo commandInfo = new APIReturnInfo();
+            ActiveGroup groupToChangeActive = new ActiveGroup();
+            GroupNumber groupToChange = new GroupNumber();
+            parseErrorCode = 0;
+            newValue = null;
+
+            //get which group to change
+            try
+            {
+                groupToChangeActive = (ActiveGroup)Enum.Parse(typeof(ActiveGroup),
+                    "Group" + targetGroup.ToString());
+
+                groupToChange = (GroupNumber)Enum.Parse(typeof(GroupNumber),
+                    "Group" + targetGroup.ToString());
+            }
+            catch
+            {
+                //was unable to determine which group to do the change on
+                parseErrorCode = 6;
+                return commandInfo;
+            }
+
+            //see if group to change is the same as current active group
+            //get the current active group from the INS
+            GeneralInterrogateData insGeneralInfo;
+            commandInfo = theSummit.ReadGeneralInfo(out insGeneralInfo);
+            if (commandInfo.RejectCode != 0)
+            {
+                //problem reading the current active group from the INS
+                return commandInfo;
+            }
+            ActiveGroup activeGroup = insGeneralInfo.TherapyStatusData.ActiveGroup;
+
+            //change current active stim group to the one that's being changed if they're different
+            if (groupToChangeActive != activeGroup)
+            {
+                commandInfo = theSummit.StimChangeActiveGroup(groupToChangeActive);
+            }
+            if (commandInfo.RejectCode != 0)
+            {
+                //problem getting the INS to change the group
+                return commandInfo;
+            }
+
+            //next, check that to program number is within 0-3
+            if (programToChange < 0 || programToChange > 3)
+            {
+                //incorrect program number
+                parseErrorCode = 7;
+                return commandInfo;
+            }
+
+            //to calculate how much to increment/decrement by to get to the desired value, first need to get current values from INS
+            TherapyGroup groupSettings = new TherapyGroup();
+            commandInfo = theSummit.ReadStimGroup(groupToChange, out groupSettings);
+            if (commandInfo.RejectCode != 0)
+            {
+                //problem reading the stim info from the INS
+                return commandInfo;
+            }
+
+            //now do the actual parameter change
+            switch (parameter)
+            {
+                case "amplitude":
+                    double currentAmp = groupSettings.Programs[programToChange].AmplitudeInMilliamps;
+                    double stepAmount = targetValue - currentAmp;
+                    commandInfo = theSummit.StimChangeStepAmp((byte)programToChange, stepAmount, out newValue);
+                    break;
+
+                case "frequency":
+                    double currentFreq = groupSettings.RateInHz;
+                    stepAmount = targetValue - currentFreq;
+                    commandInfo = theSummit.StimChangeStepFrequency(stepAmount, useSenseFriendly, out newValue);
+                    break;
+
+                case "pulse_width":
+                    double currentPW = groupSettings.Programs[programToChange].PulseWidthInMicroseconds;
+                    stepAmount = targetValue - currentPW;
+                    int? newValueInt;
+                    commandInfo = theSummit.StimChangeStepPW((byte)programToChange, (int)stepAmount, out newValueInt);
+                    newValue = newValueInt;
+                    break;
+
+                default:
+                    //parameter has to be one of the above, throw error otherwise
+                    parseErrorCode = 8;
+                    return commandInfo;
+
+            }
+
+            return commandInfo;
+
+        }
+
+
+
 
 
         //
+
 
     }
 

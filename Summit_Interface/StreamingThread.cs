@@ -653,7 +653,7 @@ namespace Summit_Interface
                                     if (!testing)
                                     {
                                         //turn stim on
-                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.StimChangeTherapyOff(true);
+                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.StimChangeTherapyOff(receivedMsg.payload.use_ramp);
 
                                         //send result of command back
                                         if (commandInfo.RejectCode == 0)
@@ -684,59 +684,29 @@ namespace Summit_Interface
                                 case "stim_change":
                                     if (!testing)
                                     {
-                                        APIReturnInfo commandInfo;
-
-                                        //get which group to change
-                                        try
-                                        {
-                                            GroupNumber groupToChange = (GroupNumber)Enum.Parse(typeof(GroupNumber),
-                                                "Group" + receivedMsg.payload.stim_group.ToString());
-                                        }
-                                        catch
-                                        {
-
-                                        }
-
-                                        //see if group to change is the same as current active group
-                                        GeneralInterrogateData insGeneralInfo;
-                                        commandInfo = resources.summitWrapper.summit.ReadGeneralInfo(out insGeneralInfo);
-
-                                        ActiveGroup activeGroup = insGeneralInfo.TherapyStatusData.ActiveGroup;
-
-
-                                        //get which program to change
-
-                                        //calculate how much to increment/decrement by to get to the desired value
-
                                         //do the stim change
-                                        APIReturnInfo commandInfo = new APIReturnInfo();
-                                        switch (receivedMsg.payload.stim_parameter)
-                                            {
-                                            case "amplitude":
-                                                commandInfo = resources.summitWrapper.summit.StimChangeTherapyOff(true);
-                                                break;
+                                        int parseErrorCode;
+                                        double? newValue;
 
-                                            case "frequency":
-                                                commandInfo = resources.summitWrapper.summit.StimChangeTherapyOff(true);
-                                                break;
-
-                                            case "pulse_width":
-                                                commandInfo = resources.summitWrapper.summit.StimChangeTherapyOff(true);
-                                                break;
-                                        }
-
+                                        APIReturnInfo commandInfo = SummitUtils.ChangeStimParameter(resources.summitWrapper.summit,
+                                            receivedMsg.payload.stim_group, receivedMsg.payload.stim_program, receivedMsg.payload.stim_parameter,
+                                            receivedMsg.payload.stim_value, true, out parseErrorCode, out newValue);
 
                                         //log to events
 
+
                                         //send result of command back
-                                        if (commandInfo.RejectCode == 0)
+                                        if (commandInfo.RejectCode == 0 && parseErrorCode == 0)
                                         {
                                             returnMsg.payload.success = true;
+                                            returnMsg.payload.new_value = (double)newValue;
                                         }
                                         else
                                         {
-                                            parseError(commandInfo, 0, ref returnMsg);
+                                            parseError(commandInfo, parseErrorCode, ref returnMsg);
+                                            returnMsg.payload.new_value = 0;
                                         }
+
 
                                     }
                                     else
@@ -812,6 +782,7 @@ namespace Summit_Interface
                     case 3:
                     case 4:
                     case 5:
+                        // This range are error codes from QueryDeviceStatus()
                         // 1 - Error in parsing Enums
                         // 2 - # of power bands != # of time domain channels 
                         // 3 - found two anodes for a stim program
@@ -823,9 +794,14 @@ namespace Summit_Interface
                         break;
 
                     case 6:
-                        //# of power bands != # of time domain channels 
-                        msg.payload.error_code = 10;
-                        msg.payload.error_message = "Inconsistent power band channel number from device info";
+                    case 7:
+                    case 8:
+                        // This range are error codes from ChangeStimParameter()
+                        // 6 - Error parsing target group
+                        // 7 - target program not within 0-3
+                        // 8 - parameter is not "frequency", "amplitude", or "pulse_width"
+                        msg.payload.error_code = 11;
+                        msg.payload.error_message = "Error in parsing stim change commands";
                         errorParsed = true;
                         break;
 
@@ -1091,6 +1067,7 @@ namespace Summit_Interface
                 public bool success { get; set; }
                 public UInt16 error_code { get; set; }
                 public string error_message { get; set; }
+                public double new_value { get; set; }
                 public UInt16 battery_level { get; set; }
                 public bool sense_on { get; set; }
                 public bool stim_on { get; set; }
