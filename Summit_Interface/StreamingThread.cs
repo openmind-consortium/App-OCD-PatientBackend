@@ -39,6 +39,7 @@ namespace Summit_Interface
         public SummitManager summitManager { get; set; } //summit manager object for reconnecting to the INS
         public String saveDataFileName { get; set; } //name of the file to save data to
         public TdSampleRates samplingRate { get; set; } //sampling rate of the time-domain channels (to put in the header of the data file)
+        public bool enableTimeSync { get; set; } //whether to use the summit API time-sync latentency estimates
         public ThreadsafeFileStream timingLogFile { get; set; } //thread-safe file for writing debug information to
         public INSParameters parameters { get; set; } //configuration parameters read from JSON file. Is read only so is threadsafe
         public bool testMyRCPS { get; set; } //if we are running code in test mode for testing connection to MyRC+S program
@@ -575,7 +576,7 @@ namespace Summit_Interface
                                     {
                                         //turn sensing on
                                         APIReturnInfo commandInfo = resources.summitWrapper.summit.WriteSensingState(SenseStates.LfpSense | SenseStates.Fft | SenseStates.Power, 0x00);
-                                        commandInfo = resources.summitWrapper.summit.WriteSensingEnableStreams(true, true, true, false, false, true, true, false);
+                                        commandInfo = resources.summitWrapper.summit.WriteSensingEnableStreams(true, true, true, false, false, true, resources.enableTimeSync, false);
 
                                         //send result of command back
                                         if (commandInfo.RejectCode == 0)
@@ -601,7 +602,7 @@ namespace Summit_Interface
                                     if (!testing)
                                     {
                                         //turn sensing off
-                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.WriteSensingDisableStreams(true, true, true, false, false, true, true, false);
+                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.WriteSensingDisableStreams(true, true, true, false, false, true, resources.enableTimeSync, false);
 
                                         //send result of command back
                                         if (commandInfo.RejectCode == 0)

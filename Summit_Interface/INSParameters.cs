@@ -80,6 +80,7 @@ namespace Summit_Interface
 
                 new parameterField("Sense",                             null,               null,                       null,               true,   false,  null,                   null,                   null,                       null),
                 new parameterField("Enabled",                           typeof(bool),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),
+                new parameterField("APITimeSync",                       typeof(bool),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("SaveFileName",                      typeof(string),     "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("BufferSize",                        typeof(long),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("ZMQPort",                           typeof(long),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),

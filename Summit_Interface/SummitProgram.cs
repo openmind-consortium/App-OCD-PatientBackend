@@ -192,6 +192,7 @@ namespace Summit_Interface
             sharedResources.parameters = parameters;
             sharedResources.testMyRCPS = noDeviceTesting;
             sharedResources.endProgram = m_exitProgram;
+            sharedResources.enableTimeSync = parameters.GetParam("Sense.APITimeSync", typeof(bool));
 
             //now, establish connection to MyRC+S program
             StreamingThread myRCSThread = new StreamingThread(ThreadType.myRCpS);
@@ -359,6 +360,23 @@ namespace Summit_Interface
                 m_impedanceFile.Close();
             }
 
+
+            //if time-synching is enabled, do latency test
+            if (parameters.GetParam("Sense.APITimeSync", typeof(bool)))
+            {
+                TimeSpan? span = null;
+                m_summit.CalculateLatency(10, out span);
+                if (span != null)
+                {
+                    Console.Write("Latency test: " + span?.ToString("c"));
+                }
+                else
+                {
+                    Console.WriteLine("Unable to perform latency test!");
+                }
+            }
+
+
             ////Configure Sensing============================================================
 
             if (doSensing)
@@ -453,7 +471,8 @@ namespace Summit_Interface
 
                 // Start streaming for time domain, FFT, power, accelerometer, and time-synchronization.
                 // Leave streaming of detector events, adaptive stim, and markers disabled
-                returnInfoBuffer = m_summit.WriteSensingEnableStreams(true, FFTEnabled, powerEnabled, false, false, true, true, false);
+                bool enableTimeSync = parameters.GetParam("Sense.APITimeSync", typeof(bool));
+                returnInfoBuffer = m_summit.WriteSensingEnableStreams(true, FFTEnabled, powerEnabled, false, false, true, enableTimeSync, false);
 
                 //initialize streaming threads variables
                 m_nTDChans = parameters.GetParam("Sense.nChans", typeof(int));
