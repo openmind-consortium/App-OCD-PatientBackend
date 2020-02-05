@@ -20,7 +20,7 @@
         "comment_Channel_Definitions": "No more than two channels can be on a single bore. When configuring, channels on first bore will always be first. Can only have sampling rates of: 250, 500, and 1000 (Hz), packet period can be 30, 40, 50, 60, 70, 80, 90, or 100 (ms)",
         "Enabled": true,
         "APITimeSync": true,
-        "SaveFileName": "C:\\Users\\David\\Desktop\\tmp\\SalineTest.txt",
+        "SaveFileName": "C:\\Users\\dyxing\\Desktop\\Tmp\\SalineTest.txt",
         "BufferSize": 1000,
         "ZMQPort": 5555,
         "InterpolateMissingPackets": false,

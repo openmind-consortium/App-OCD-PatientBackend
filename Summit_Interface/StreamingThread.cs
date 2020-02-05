@@ -1030,7 +1030,7 @@ namespace Summit_Interface
                         break;
                     case "stim_change":
                         //for turning stim/sense on/off or reconnecting, randomly send back either success or some error
-                        int randInt = random.Next(3);
+                        randInt = random.Next(3);
                         if (randInt == 0)
                         {
                             returnMsg.payload.success = true;
