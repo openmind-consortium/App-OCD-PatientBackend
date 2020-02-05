@@ -1028,6 +1028,33 @@ namespace Summit_Interface
                             returnMsg.payload.error_message = "INS Disconnected";
                         }
                         break;
+                    case "stim_change":
+                        //for turning stim/sense on/off or reconnecting, randomly send back either success or some error
+                        int randInt = random.Next(3);
+                        if (randInt == 0)
+                        {
+                            returnMsg.payload.success = true;
+                        }
+                        else if (randInt == 1)
+                        {
+                            returnMsg.payload.success = false;
+                            returnMsg.payload.error_code = 1;
+                            returnMsg.payload.error_message = "Insufficient Battery";
+                        }
+                        else if (randInt == 2)
+                        {
+                            returnMsg.payload.success = false;
+                            returnMsg.payload.error_code = 2;
+                            returnMsg.payload.error_message = "INS Disconnected";
+                        }
+
+                        //if it is stim_change, also send back a new value (random value between 0 and 100)
+                        if (responseType == "stim_change")
+                        {
+                            returnMsg.payload.new_value = (ushort)random.Next(0, 101);
+                        }
+
+                        break;
 
                 }
                 
