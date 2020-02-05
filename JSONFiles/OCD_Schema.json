@@ -1,0 +1,937 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Patient-facing/summit-interface data passing schema",
+  "description": "v0.07",
+  "examples": [
+
+    {
+      "message_type": "get",
+      "message": "device"
+    },
+
+    {
+      "message_type": "post",
+      "message": "stim_on",
+      "payload": {
+        "use_ramp": false
+      }
+    },
+
+    {
+      "message_type": "post",
+      "message": "stim_change",
+      "payload": {
+        "stim_parameter": "amplitude",
+        "stim_group": 0,
+        "stim_program": 2,
+        "stim_value": 2,
+        "stim_sense_friendly": true
+      }
+    },
+
+    {
+      "message_type": "result",
+      "message": "stim_change",
+      "payload": {
+        "success": true,
+        "new_value": 0.5
+      }
+    },
+
+    {
+      "message_type": "result",
+      "message": "device_info",
+
+      "payload": {
+        "battery_level": 99,
+        "sense_on": true,
+        "stim_on": true,
+
+        "sense_config": {
+          "time_domain_on": true,
+          "FFT_on": true,
+          "accel_on": true,
+          "powerbands_on": true,
+          "anodes": [ 0, 2, 8, 10 ],
+          "cathodes": [ 1, 3, 9, 11 ],
+          "sampling_rates": [ 500, 500, 500, 500 ],
+          "highpass_filter": [ 0.85, 0.85, 0.85, 0.85 ],
+          "lowpass_filter1": [ 450, 450, 450, 450 ],
+          "lowpass_filter2": [ 1700, 1700, 1700, 1700 ],
+          "FFT_size": 1024,
+          "FFT_interval": 500,
+          "FFT_windowing_on": true,
+          "FFT_window_load": "Hann100",
+          "FFT_stream_size": 0,
+          "FFT_stream_offset": 0,
+          "powerband1_lower_cutoff": [ 10, 20, 30, 40 ],
+          "powerband1_upper_cutoff": [ 20, 30, 40, 50 ],
+          "powerband2_lower_cutoff": [ 60, 70, 80, 90 ],
+          "powerband2_upper_cutoff": [ 70, 80, 90, 100 ],
+          "powerband1_enabled": [ true, false, true, false ],
+          "powerband2_enabled": [ false, true, false, true ]
+        },
+
+        "stim_config": {
+          "current_group": 0,
+          "number_of_programs": [ 4, 2, 0, 0 ],
+          "anodes": [
+            [ 0, 1, 2, 2 ],
+            [ 13, 14 ],
+            [],
+            []
+          ],
+          "cathodes": [
+            [ 16, 16, 16, 3 ],
+            [ 14, 16 ],
+            [],
+            []
+          ],
+          "pulsewidth_lower_limit": [ 0, 0, 0, 0 ],
+          "pulsewidth_upper_limit": [ 150, 150, 150, 150 ],
+          "current_pulsewidth": [
+            [ 80, 100, 80, 100 ],
+            [ 120, 120 ],
+            [],
+            []
+          ],
+          "frequency_lower_limit": [ 0, 0, 0, 0 ],
+          "frequency_upper_limit": [ 80, 80, 80, 80 ],
+          "current_frequency": [ 10, 20, 30, 40 ],
+          "amplitude_lower_limit": [
+            [ 0, 0, 0, 0 ],
+            [ 0, 0 ],
+            [],
+            []
+          ],
+          "amplitude_upper_limit": [
+            [ 3, 3, 3, 3 ],
+            [ 4, 4 ],
+            [],
+            []
+          ],
+          "current_amplitude": [
+            [ 1, 1.5, 2, 2.5 ],
+            [ 3, 0 ],
+            [],
+            []
+          ],
+          "active_recharge": [
+            [ true, true, true, true ],
+            [ false, false ],
+            [],
+            []
+          ]
+        }
+
+      }
+    },
+
+    {
+      "message_type": "result",
+      "message": "sense_off",
+      "payload": {
+        "success": true
+      }
+    },
+
+    {
+      "message_type": "result",
+      "message": "stim_on",
+      "payload": {
+        "success": false,
+        "error_code": 1,
+        "error_message": "Not enough battery"
+      }
+    }
+
+  ],
+
+  "definitions": {
+
+    "command_result": {
+      "description": "object that is returned in 'payload' when sense/stim is turned on/off",
+      "type": "object",
+      "properties": {
+
+        "success": {
+          "description": "whether the command was successfully executed on the INS or not",
+          "type": "boolean"
+        }
+
+      },
+
+      "if": {
+        "properties": { "success": { "const": false } }
+      },
+
+      "then": {
+        "properties": {
+
+          "error_code": {
+            "description": "If it wasn't successfully executed, this is the error code",
+            "type": "integer",
+            "minimum": 0
+          },
+
+          "error_message": {
+            "description": "If it wasn't successfully executed, this is a short description of the error",
+            "type": "string"
+          }
+
+        },
+        "required": [ "error_code", "error_message" ]
+      },
+
+      "required": [ "success" ]
+    }
+
+  },
+
+  "type": "object",
+  "properties": {
+
+    "message_type": {
+      "description": "What type of message this is (e.g. status request, or stim/sense change to the summit interface program, or, a request/change result message from the summit interface program",
+      "type": "string",
+      "enum": [ "get", "post", "result" ]
+    },
+
+    "message": {
+      "description": "The specific request/command/result",
+      "type": "string",
+      "enum": [ "battery", "device_info", "sense_on", "sense_off", "stim_on", "stim_off", "quit", "stim_change" ]
+    }
+  },
+
+  "allOf":  [
+    {
+      "if": {
+        "properties": { "message_type": { "const": "result" } }
+      },
+
+      "then": {
+
+        "allOf": [
+
+          {
+            "if": {
+              "properties": { "message": { "const": "battery" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "For battery status requests, use this payload structure",
+                  "type": "object",
+                  "properties": {
+
+                    "battery_level": {
+                      "description": "float containing the battery level from 0-100%",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+
+                    }
+                  },
+                  "required": [ "battery_level" ]
+
+                }
+              }
+            }
+          },
+
+          {
+            "if": {
+              "properties": { "message": { "const": "device_info" } }
+            },
+
+            "then": {
+
+              "properties": {
+
+                "payload": {
+                  "description": "For device info status requests, use this payload structure",
+                  "type": "object",
+
+                  "$ref": "#/definitions/command_result",
+
+                  "if": {
+                    "properties": { "success": { "const": true } }
+                  },
+
+                  "then": {
+                    "properties": {
+
+                      "battery_level": {
+                        "description": "float containing the battery level from 0-100%",
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+
+                      },
+
+                      "sense_on": {
+                        "description": "Whether sensing is turned on or not (if any of FFT, power bands, or time domain is on, then sensing is on)",
+                        "type": "boolean"
+                      },
+
+                      "stim_on": {
+                        "description": "Whether stim is turned on or not",
+                        "type": "boolean"
+                      },
+
+                      "sense_config": {
+                        "description": "Information about the sensing setup",
+                        "type": "object",
+                        "properties": {
+
+                          "time_domain_on": {
+                            "description": "Whether the time domain sensing is turned on or not",
+                            "type": "boolean"
+                          },
+
+                          "FFT_on": {
+                            "description": "Whether the FFT streaming is turned on or not",
+                            "type": "boolean"
+                          },
+
+                          "accel_on": {
+                            "description": "Whether the accelerometer data streaming is turned on or not",
+                            "type": "boolean"
+                          },
+
+                          "powerbands_on": {
+                            "description": "Whether the power bands streaming is turned on or not",
+                            "type": "boolean"
+                          },
+
+                          "anodes": {
+                            "description": "anode electrodes for the sensing channels (electrodes 0-15, 16=case)",
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 16
+                            },
+                            "maxItems": 4
+                          },
+
+                          "cathodes": {
+                            "description": "cathode electrodes for the sensing channels (electrodes 0-15, 16=case)",
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 16
+                            },
+                            "maxItems": 4
+                          },
+
+                          "sampling_rates": {
+                            "description": "sampling rates (in Hz) of each time domain channel (0 = channel disabled)",
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "enum": [ 0, 250, 500, 1000 ]
+                            },
+                            "maxItems": 4
+                          },
+
+                          "highpass_filter": {
+                            "description": "Cutoffs (in Hz) of the highpass filter for each time domain channel",
+                            "type": "array",
+                            "items": {
+                              "type": "number",
+                              "enum": [ 0.85, 1.2, 3.3, 8.6 ]
+                            },
+                            "maxItems": 4
+                          },
+
+                          "lowpass_filter1": {
+                            "description": "Cutoffs (in Hz) of the first lowpass filter for each time domain channel",
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "enum": [ 50, 100, 450 ]
+                            },
+                            "maxItems": 4
+                          },
+
+                          "lowpass_filter2": {
+                            "description": "Cutoffs (in Hz) of the second lowpass filter for each time domain channel",
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "enum": [ 100, 160, 350, 1700 ]
+                            },
+                            "maxItems": 4
+                          },
+
+                          "FFT_size": {
+                            "description": "Size of FFT",
+                            "type": "integer",
+                            "enum": [ 64, 256, 1024 ]
+                          },
+
+                          "FFT_interval": {
+                            "description": "Interval of FFT",
+                            "type": "integer"
+                          },
+
+                          "FFT_windowing_on": {
+                            "description": "Whether to do windowing after FFT",
+                            "type": "boolean"
+                          },
+
+                          "FFT_window_load": {
+                            "description": "Which type of window to use",
+                            "type": "string",
+                            "enum": [ "Hann25", "Hann50", "Hann100" ]
+                          },
+
+                          "FFT_stream_size": {
+                            "description": "Stream size of FFT",
+                            "type": "integer"
+                          },
+
+                          "FFT_stream_offset": {
+                            "description": "Stream offset of FFT",
+                            "type": "integer"
+                          },
+
+                          "powerband1_lower_cutoff": {
+                            "description": "Lower bounds (in hz) of the first powerband for each channel",
+                            "type": "array",
+                            "items": {
+                              "type": "integer"
+                            },
+                            "maxItems": 4
+                          },
+
+                          "powerband1_upper_cutoff": {
+                            "description": "Upper bounds (in hz) of the first powerband for each channel",
+                            "type": "array",
+                            "items": {
+                              "type": "integer"
+                            },
+                            "maxItems": 4
+                          },
+
+                          "powerband2_lower_cutoff": {
+                            "description": "Lower bounds (in hz) of the second powerband for each channel",
+                            "type": "array",
+                            "items": {
+                              "type": "integer"
+                            },
+                            "maxItems": 4
+                          },
+
+                          "powerband2_upper_cutoff": {
+                            "description": "Upper bounds (in hz) of the second powerband for each channel",
+                            "type": "array",
+                            "items": {
+                              "type": "integer"
+                            },
+                            "maxItems": 4
+                          },
+
+                          "powerband1_enabled": {
+                            "description": "Whether to get the first power bands for each of the time domain channels",
+                            "type": "array",
+                            "items": {
+                              "type": "boolean"
+                            },
+                            "maxItems": 4
+                          },
+
+                          "powerband2_enabled": {
+                            "description": "Whether to get the second power bands for each of the time domain channels",
+                            "type": "array",
+                            "items": {
+                              "type": "boolean"
+                            },
+                            "maxItems": 4
+                          }
+
+                        },
+
+                        "required": [
+                          "time_domain_on",
+                          "FFT_on",
+                          "accel_on",
+                          "powerbands_on",
+                          "anodes",
+                          "cathodes",
+                          "sampling_rates",
+                          "highpass_filter",
+                          "lowpass_filter1",
+                          "lowpass_filter2",
+                          "FFT_size",
+                          "FFT_interval",
+                          "FFT_windowing_on",
+                          "FFT_window_load",
+                          "FFT_stream_size",
+                          "FFT_stream_offset",
+                          "powerband1_lower_cutoff",
+                          "powerband1_upper_cutoff",
+                          "powerband2_lower_cutoff",
+                          "powerband2_upper_cutoff",
+                          "powerband1_enabled",
+                          "powerband2_enabled"
+                        ]
+                      },
+
+                      "stim_config": {
+                        "description": "Information about the stimulation setup",
+                        "type": "object",
+                        "properties": {
+
+                          "current_group": {
+                            "description": "Which group is currently active for stim (Group0 to Group3)",
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 3
+                          },
+
+                          "number_of_programs": {
+                            "description": "Actual number of programs that was set up for each group (max 4)",
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 4
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "anodes": {
+                            "description": "Which electrodes were used as the anodes for each of the programs of each group (0-15, 16=case)",
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 16
+                              },
+                              "maxItems": 4
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "cathodes": {
+                            "description": "Which electrodes were used as the cathodes for each of the programs of each group (0-15, 16=case)",
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 16
+                              },
+                              "maxItems": 4
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "pulsewidth_lower_limit": {
+                            "description": "Minimum safe values for stim pulse width (in us) for each group (constant across all programs of a group)",
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "pulsewidth_upper_limit": {
+                            "description": "Maximum safe values for stim pulse width (in us) for each group (constant across all programs of a group)",
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "current_pulsewidth": {
+                            "description": "The current pulse width (in us) of the stim pulses for each program of each group",
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "maxItems": 4
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "frequency_lower_limit": {
+                            "description": "Minimum safe values for stim frequency (in hz) for each group (constant across all programs of a group)",
+                            "type": "array",
+                            "items": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "frequency_upper_limit": {
+                            "description": "Maximum safe values for stim frequency (in hz) for each group (constant across all programs of a group)",
+                            "type": "array",
+                            "items": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "current_frequency": {
+                            "description": "The current frequency (in hz) of the stimulation for each group (constant across all programs of a group)",
+                            "type": "array",
+                            "items": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "amplitude_lower_limit": {
+                            "description": "Minimum safe amplitude (in mA) of the stim pulses for each program of each group",
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "maxItems": 4
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "amplitude_upper_limit": {
+                            "description": "Maximum safe amplitude (in mA) of the stim pulses for each program of each group",
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "maxItems": 4
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "current_amplitude": {
+                            "description": "The current amplitude (in mA) of the stim pulses for each program of each group",
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "maxItems": 4
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          },
+
+                          "active_recharge": {
+                            "description": "The current pulse width (in us) of the stim pulses for each program of each group",
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "boolean"
+                              },
+                              "maxItems": 4
+                            },
+                            "minItems": 4,
+                            "maxItems": 4
+                          }
+
+                        }
+                      }
+
+                    },
+                    "required": [ "battery_level", "sense_on", "stim_on", "sense_config", "stim_config" ]
+                  }
+
+                }
+
+              }
+
+            }
+          },
+
+          {
+            "if": {
+              "properties": { "message": { "const": "sense_on" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "Payload structure for the result of a command to turn sensing on",
+                  "$ref": "#/definitions/command_result"
+                }
+
+              }
+            }
+          },
+
+          {
+            "if": {
+              "properties": { "message": { "const": "sense_off" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "Payload structure for the result of a command to turn sensing off",
+                  "$ref": "#/definitions/command_result"
+                }
+
+              }
+            }
+          },
+
+          {
+            "if": {
+              "properties": { "message": { "const": "stim_on" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "Payload structure for the result of a command to turn stim on",
+                  "$ref": "#/definitions/command_result"
+                }
+
+              }
+            }
+          },
+
+          {
+            "if": {
+              "properties": { "message": { "const": "stim_off" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "Payload structure for the result of a command to turn stim off",
+                  "$ref": "#/definitions/command_result"
+                }
+
+              }
+            }
+          },
+
+          {
+            "if": {
+              "properties": { "message": { "const": "stim_change" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "Payload structure for the result of a command to turn stim change",
+                  "properties": {
+
+                    "success": {
+                      "description": "whether the command was successfully executed on the INS or not",
+                      "type": "boolean"
+                    },
+
+                    "new_value": {
+                      "description": "the new value the parameter was changed to after carrying out the stim change",
+                      "type": "number"
+                    }
+
+                  },
+
+                  "if": {
+                    "properties": { "success": { "const": false } }
+                  },
+
+                  "then": {
+                    "properties": {
+
+                      "error_code": {
+                        "description": "If it wasn't successfully executed, this is the error code",
+                        "type": "integer",
+                        "minimum": 0
+                      },
+
+                      "error_message": {
+                        "description": "If it wasn't successfully executed, this is a short description of the error",
+                        "type": "string"
+                      }
+
+                    },
+                    "required": [ "error_code", "error_message" ]
+                  },
+
+                  "required": [ "success", "new_value" ]
+                }
+
+              }
+            }
+          }
+
+        ],
+
+        "required": [ "payload" ]
+
+      }
+    },
+
+    {
+
+      "if": {
+        "properties": { "message_type": { "const": "post" } }
+      },
+
+      "then": {
+
+        "allOf": [
+
+          {
+            "if": {
+              "properties": { "message": { "const": "stim_change" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "For stim change posts, use this payload structure",
+                  "type": "object",
+                  "properties": {
+
+                    "stim_parameter": {
+                      "description": "The parameter to change (amplitude, frequency, or pulse width)",
+                      "type": "string",
+                      "enum": [ "amplitude", "frequency", "pulse_width" ]
+                    },
+
+                    "stim_group": {
+                      "description": "The group to change the stim parameter on",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 3
+                    },
+
+                    "stim_program": {
+                      "description": "The program to change the stim pamaeter on (only matters for amplitude and pulse width)",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 3
+                    },
+
+                    "stim_value": {
+                      "description": "The value to change the parameter to (mA for amplitude, Hz for frequency, us for pulse width)",
+                      "type": "number"
+                    },
+
+                    "stim_sense_friendly": {
+                      "description": "If parameter is frequency, whether to limit to sense-friendly values (doesn't matter for amp and PW)",
+                      "type": "boolean"
+                    }
+
+                  },
+                  "required": [ "stim_parameter", "stim_group", "stim_program", "stim_value", "stim_sense_friendly" ]
+
+                }
+              }
+            }
+          },
+
+          {
+            "if": {
+              "properties": { "message": { "const": "stim_on" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "For stim on posts, use this payload structure",
+                  "type": "object",
+                  "properties": {
+
+                    "use_ramp": {
+                      "description": "whether to use ramping or not",
+                      "type": "boolean"
+                    }
+
+                  },
+                  "required": [ "use_ramp" ]
+
+                }
+              }
+            }
+          },
+
+          {
+            "if": {
+              "properties": { "message": { "const": "stim_off" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "For stim off posts, use this payload structure",
+                  "type": "object",
+                  "properties": {
+
+                    "use_ramp": {
+                      "description": "whether to use ramping or not",
+                      "type": "boolean"
+                    }
+
+                  },
+                  "required": [ "use_ramp" ]
+
+                }
+              }
+            }
+          }
+
+        ],
+
+        "required": [ "payload" ]
+
+      }
+    }
+
+  ],
+
+    "required": [ "message_type", "message" ]
+
+  }

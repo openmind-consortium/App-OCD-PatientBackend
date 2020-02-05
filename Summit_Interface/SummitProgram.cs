@@ -1,30 +1,38 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Timers;
-using System.Threading;
-using System.Windows.Forms;
-
+﻿using Medtronic.NeuroStim.Olympus.Commands;
+using Medtronic.NeuroStim.Olympus.DataTypes.Core;
+using Medtronic.NeuroStim.Olympus.DataTypes.DeviceManagement;
+using Medtronic.NeuroStim.Olympus.DataTypes.Measurement;
+using Medtronic.NeuroStim.Olympus.DataTypes.PowerManagement;
+using Medtronic.NeuroStim.Olympus.DataTypes.Sensing;
+using Medtronic.NeuroStim.Olympus.DataTypes.Therapy;
 using Medtronic.SummitAPI.Classes;
 using Medtronic.SummitAPI.Events;
-using Medtronic.TelemetryM;
-using Medtronic.NeuroStim.Olympus.DataTypes.Core;
-using Medtronic.NeuroStim.Olympus.DataTypes.Sensing;
-using Medtronic.NeuroStim.Olympus.DataTypes.Measurement;
-using Medtronic.NeuroStim.Olympus.Commands;
-using Medtronic.NeuroStim.Olympus.DataTypes.PowerManagement;
-using Medtronic.NeuroStim.Olympus.DataTypes.Therapy;
-using Medtronic.NeuroStim.Olympus.DataTypes.DeviceManagement;
-
 using NetMQ;
 using NetMQ.Sockets;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Schema;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Windows.Forms;
+using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Summit_Interface
 {
     class SummitProgram
     {
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetConsoleWindow();
+
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        const int SW_HIDE = 0;
+        const int SW_SHOW = 5;
+
         //Session experimental parameters
         static INSParameters parameters;
 
@@ -36,6 +44,7 @@ namespace Summit_Interface
 
         //Summit API object
         static SummitSystem m_summit;
+        static SummitSystemWrapper m_summitWrapper;
 
         //sweeper class for sweeping through stim parameters
         static StimSweeper m_singlePulseSweeper;
@@ -61,38 +70,63 @@ namespace Summit_Interface
         static bool m_singlePulseSweeping;
         static bool m_stimBurstSweeping;
 
+        static endProgramWrapper m_exitProgram;
+
         //Main program
         [STAThread]
         static void Main(string[] args)
         {
             ////Initiation===============================================================
-            // Tell user this code is not for human use
-            Console.WriteLine("Starting Summit Interface Code for RC+S");
-            Console.WriteLine("This code is not for human use, either close program window or proceed by pressing a key");
-            Console.ReadKey();
-            Console.WriteLine("");
 
-            //First, load in parameters from JSON file
-            OpenFileDialog parametersFileDialog = new OpenFileDialog();
-            parametersFileDialog.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
-            parametersFileDialog.FilterIndex = 0;
-            parametersFileDialog.RestoreDirectory = true;
-            parametersFileDialog.Multiselect = false;
-            parametersFileDialog.Title = "Select Summit parameters JSON file";
+            //First, load in configuration parameters from JSON file
             string parametersFileName;
-            if (parametersFileDialog.ShowDialog() == DialogResult.OK)
+
+            if (File.Exists("C:/JSONFiles/SIPConfig.json"))
             {
-                parametersFileName = parametersFileDialog.FileName;
+                //load in frome default file if it exists
+                parametersFileName = "C:/JSONFiles/SIPConfig.json";
+            }
+            else if (File.Exists("../../../../JSONFiles/ExampleParametersFile.json"))
+            {
+                //load in frome default file if it exists
+                parametersFileName = "../../../../JSONFiles/ExampleParametersFile.json";
             }
             else
             {
-                Console.WriteLine("Error: unable to read parameters file");
-                Console.WriteLine("Press a key to close.");
-                Console.ReadKey();
-                return;
+                //otherwise, ask user to give a file
+                OpenFileDialog parametersFileDialog = new OpenFileDialog();
+                parametersFileDialog.Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*";
+                parametersFileDialog.FilterIndex = 0;
+                parametersFileDialog.RestoreDirectory = true;
+                parametersFileDialog.Multiselect = false;
+                parametersFileDialog.Title = "Select Summit parameters JSON file";
+                if (parametersFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    parametersFileName = parametersFileDialog.FileName;
+                }
+                else
+                {
+                    Console.WriteLine("Error: unable to read parameters file");
+                    Console.WriteLine("Press a key to close.");
+                    Console.ReadKey();
+                    return;
+                }
             }
 
             parameters = new INSParameters(parametersFileName);
+
+            //hide console window if desired
+            bool hideConsole = parameters.GetParam("HideConsole", typeof(bool));
+            const int SW_HIDE = 0;
+            const int SW_SHOW = 5;
+            var handle = GetConsoleWindow();
+
+            if (hideConsole)
+            {
+                ShowWindow(handle, SW_HIDE);
+            }
+
+            ConsoleKeyInfo input = new ConsoleKeyInfo();
 
             // set up buffers
             int numSenseChans = parameters.GetParam("Sense.nChans", typeof(int));
@@ -101,44 +135,93 @@ namespace Summit_Interface
             m_FFTBuffer = new INSBuffer(1, bufferSize);
             m_BPBuffer = new INSBuffer(numSenseChans * 2, bufferSize);
             m_dataSavingBuffer = new INSBuffer(numSenseChans, bufferSize);
+            m_summitWrapper = new SummitSystemWrapper();
 
             //set up files
             m_dataFileName = parameters.GetParam("Sense.SaveFileName", typeof(string));
             if (m_dataFileName.Length > 4)
             {
-                if (m_dataFileName.Substring(m_dataFileName.Length-4,4) == ".txt")
+                if (m_dataFileName.Substring(m_dataFileName.Length - 4, 4) == ".txt")
                 {
                     m_dataFileName = m_dataFileName.Substring(0, m_dataFileName.Length - 4);
                 }
             }
+
+            //check if the file exists, and warn user that it will be overwritten if it does
+            List<string> dataFilesNames = new List<string> { m_dataFileName + "-Timing.txt",
+                m_dataFileName + "-Debug.txt", m_dataFileName + "-Impedance.txt" };
+
+            bool filesExists = false;
+            foreach (string filename in dataFilesNames)
+            {
+                if (File.Exists(filename))
+                {
+                    Console.WriteLine("Warning: " + filename + " already exsits, it will be overwritten!");
+                    filesExists = true;
+                }
+            }
+
+            //if (filesExists)
+            //{
+            //    Console.Write("Press any key to continue");
+            //    Console.ReadKey();
+            //    return;
+            //}
+
             m_timingLogFile = new ThreadsafeFileStream(m_dataFileName + "-Timing.txt");
             m_debugFile = new ThreadsafeFileStream(m_dataFileName + "-Debug.txt");
             System.IO.StreamWriter m_impedanceFile = new System.IO.StreamWriter(m_dataFileName + "-Impedance.txt");
 
-            //TODO: check if the file exists, and warn user that it will be overwritten if it does
+            // Create a manager
+            SummitManager theSummitManager = new SummitManager("BSI");
 
+            // setup thread-safe shared resources
+            bool doSensing = parameters.GetParam("Sense.Enabled", typeof(bool));
+            TdSampleRates samplingRate = TdSampleRates.Disabled; //default disabled, if we are sensing, we'll set the sampling rate below
+            bool noDeviceTesting = parameters.GetParam("NoDeviceTesting", typeof(bool));
+            m_exitProgram = new endProgramWrapper();
+
+            ThreadResources sharedResources = new ThreadResources();
+            sharedResources.TDbuffer = m_TDBuffer;
+            sharedResources.savingBuffer = m_dataSavingBuffer;
+            sharedResources.summitWrapper = m_summitWrapper;
+            sharedResources.summitManager = theSummitManager;
+            sharedResources.saveDataFileName = m_dataFileName;
+            sharedResources.samplingRate = doSensing ? samplingRate : TdSampleRates.Disabled;
+            sharedResources.timingLogFile = m_timingLogFile;
+            sharedResources.parameters = parameters;
+            sharedResources.testMyRCPS = noDeviceTesting;
+            sharedResources.endProgram = m_exitProgram;
+            sharedResources.enableTimeSync = parameters.GetParam("Sense.APITimeSync", typeof(bool));
+
+            //now, establish connection to MyRC+S program
+            StreamingThread myRCSThread = new StreamingThread(ThreadType.myRCpS);
+            myRCSThread.StartThread(ref sharedResources);
 
             ////Connect to Device=========================================================
             // Initialize the Summit Interface
             Console.WriteLine();
             Console.WriteLine("Creating Summit Interface...");
-
-            // Create a manager
-            SummitManager theSummitManager = new SummitManager("BSI");
+            Thread.Sleep(5000);
+            ushort mode = (ushort)parameters.GetParam("TelemetryMode", typeof(int));
 
             // Connect to CTM and INS
-            if (!SummitUtils.SummitConnect(theSummitManager, ref m_summit))
+            while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper, mode))
             {
-                // Failed to connect. Could error handle and retry. Instead we will close the program.
-                theSummitManager.Dispose();
+                // Failed to connect, keep retrying
+                //Console.WriteLine("Unable to establish connection, press 'r' to retry, or anything else to exit");
+                //ConsoleKeyInfo retryKey = Console.ReadKey();
 
-                Console.WriteLine("Press a key to close.");
-                Console.ReadKey();
-                return;
+                //if (retryKey.KeyChar.ToString() != "r")
+
+                Console.WriteLine("Unable to establish connection, retrying...");
+                if (m_exitProgram.end)
+                {
+                    theSummitManager.Dispose();
+                    return;
+                }
             }
 
-            
-            //check battery level and display
             BatteryStatusResult outputBuffer;
             APIReturnInfo commandInfo = m_summit.ReadBatteryLevel(out outputBuffer);
 
@@ -159,6 +242,38 @@ namespace Summit_Interface
                 Console.WriteLine("Unable to read battery level");
             }
             Console.WriteLine();
+
+            /*
+            System.IO.StreamWriter testingFile = new System.IO.StreamWriter("BatteryTesting.txt");
+            string message;
+            while (true)
+            {
+                commandInfo = m_summit.StimChangeTherapyOff(false);
+                message = "Stim off \t " + commandInfo.RejectCodeType.ToString() +
+                    '\t' + commandInfo.RejectCode.ToString() + '\t' + String.Format("{0:F}", DateTime.Now);
+                testingFile.WriteLine(message);
+                Console.WriteLine(message);
+                if (commandInfo.RejectCode != 0)
+                {
+                    break;
+                }
+
+                Thread.Sleep(1000);
+
+                commandInfo = m_summit.StimChangeTherapyOn();
+                message = "Stim on \t " + commandInfo.RejectCodeType.ToString() +
+                    '\t' + commandInfo.RejectCode.ToString() + '\t' + String.Format("{0:F}", DateTime.Now);
+                testingFile.WriteLine(message);
+                Console.WriteLine(message);
+                if (commandInfo.RejectCode != 0)
+                {
+                    break;
+                }
+
+                Thread.Sleep(1000);
+            }
+            testingFile.Close();
+            */
 
             //run impedance test
             if (parameters.GetParam("RunImpedanceTest", typeof(bool)))
@@ -182,7 +297,7 @@ namespace Summit_Interface
                 //make headers and labels
                 m_impedanceFile.Write("Impedance Testing Time: " + String.Format("{0:F}", DateTime.Now) + "\r\n");
                 m_impedanceFile.WriteLine();
-                string impedHeader="";
+                string impedHeader = "";
                 for (int iElec = 0; iElec < 16; iElec++)
                 {
                     impedHeader += ("\tChan " + iElec);
@@ -202,8 +317,8 @@ namespace Summit_Interface
                     }
                     else
                     {
-                        Console.Write(String.Format("Chan {0}",iElec));
-                        m_impedanceFile.Write(String.Format("Chan {0}",iElec));
+                        Console.Write(String.Format("Chan {0}", iElec));
+                        m_impedanceFile.Write(String.Format("Chan {0}", iElec));
                     }
 
                     List<double> thisElecImpedances = new List<double>(); //list to save impedances to
@@ -245,9 +360,24 @@ namespace Summit_Interface
                 m_impedanceFile.Close();
             }
 
+
+            //if time-synching is enabled, do latency test
+            if (parameters.GetParam("Sense.APITimeSync", typeof(bool)))
+            {
+                TimeSpan? span = null;
+                m_summit.CalculateLatency(10, out span);
+                if (span != null)
+                {
+                    Console.Write("Latency test: " + span?.ToString("c"));
+                }
+                else
+                {
+                    Console.WriteLine("Unable to perform latency test!");
+                }
+            }
+
+
             ////Configure Sensing============================================================
-            bool doSensing = parameters.GetParam("Sense.Enabled", typeof(bool));
-            TdSampleRates samplingRate = TdSampleRates.Disabled; //default disabled, if we are sensing, we'll set the sampling rate below
 
             if (doSensing)
             {
@@ -341,7 +471,8 @@ namespace Summit_Interface
 
                 // Start streaming for time domain, FFT, power, accelerometer, and time-synchronization.
                 // Leave streaming of detector events, adaptive stim, and markers disabled
-                returnInfoBuffer = m_summit.WriteSensingEnableStreams(true, FFTEnabled, powerEnabled, false, false, true, true, false);
+                bool enableTimeSync = parameters.GetParam("Sense.APITimeSync", typeof(bool));
+                returnInfoBuffer = m_summit.WriteSensingEnableStreams(true, FFTEnabled, powerEnabled, false, false, true, enableTimeSync, false);
 
                 //initialize streaming threads variables
                 m_nTDChans = parameters.GetParam("Sense.nChans", typeof(int));
@@ -366,7 +497,7 @@ namespace Summit_Interface
             string startManualStim = null, stopManualStim = null;
             string upAmp = null, downAmp = null, upFreq = null, downFreq = null, upPW = null, downPW = null;
             double? changeAmpAmount = null, changeFreqAmount = null;
-            double defaultStimAmp=0; //TODO: change this to actual starting stim amp from JSON
+            double defaultStimAmp = 0; //TODO: change this to actual starting stim amp from JSON
             int? changePWAmount = null;
             var manualGroupButtons = parameters.GetParam("ManualStim.GroupButton", typeof(string));
             var manualProgramButtons = parameters.GetParam("ManualStim.ProgramButton", typeof(string));
@@ -430,12 +561,12 @@ namespace Summit_Interface
                 {
                     //get group parameters
                     Console.WriteLine("Reading stimulation info from INS...");
-                    List<GroupNumber> allGroupNums = new List<GroupNumber>{ GroupNumber.Group0, GroupNumber.Group1, GroupNumber.Group2, GroupNumber.Group3 };
-                    List<ActiveGroup> allGroupActives = new List<ActiveGroup>{ ActiveGroup.Group0, ActiveGroup.Group1, ActiveGroup.Group2, ActiveGroup.Group3 };
+                    List<GroupNumber> allGroupNums = new List<GroupNumber> { GroupNumber.Group0, GroupNumber.Group1, GroupNumber.Group2, GroupNumber.Group3 };
+                    List<ActiveGroup> allGroupActives = new List<ActiveGroup> { ActiveGroup.Group0, ActiveGroup.Group1, ActiveGroup.Group2, ActiveGroup.Group3 };
                     TherapyGroup groupInfo;
                     for (int iGroup = 0; iGroup < allGroupNums.Count; iGroup++)
                     {
-                        m_summit.ReadStimGroup(allGroupNums[iGroup], out groupInfo);
+                        commandInfo = m_summit.ReadStimGroup(allGroupNums[iGroup], out groupInfo);
                         List<TherapyProgram> programs = groupInfo.Programs;
 
                         if (groupInfo.Valid)
@@ -443,7 +574,7 @@ namespace Summit_Interface
                             manualGroupNums.Add(allGroupNums[iGroup]);
                             manualGroupActives.Add(allGroupActives[iGroup]);
 
-                            Console.WriteLine(String.Format("Group {0}:",iGroup));
+                            Console.WriteLine(String.Format("Group {0}:", iGroup));
                             List<int> groupProgs = new List<int>();
                             int iList = 0;
                             foreach (TherapyProgram iProgram in programs)
@@ -451,7 +582,7 @@ namespace Summit_Interface
                                 if (iProgram.Valid)
                                 {
                                     groupProgs.Add(iList);
-                                    Console.WriteLine("\t"+String.Format("Program {0}",iList));
+                                    Console.WriteLine("\t" + String.Format("Program {0}", iList));
                                 }
                                 iList++;
                             }
@@ -473,7 +604,7 @@ namespace Summit_Interface
                 downAmp = parameters.GetParam("ManualStim.DecrementAmpButton", typeof(string));
                 upFreq = parameters.GetParam("ManualStim.IncrementFreqButton", typeof(string));
                 downFreq = parameters.GetParam("ManualStim.DecrementFreqButton", typeof(string));
-                upPW= parameters.GetParam("ManualStim.IncrementPWButton", typeof(string));
+                upPW = parameters.GetParam("ManualStim.IncrementPWButton", typeof(string));
                 downPW = parameters.GetParam("ManualStim.DecrementPWButton", typeof(string));
 
                 changeAmpAmount = parameters.GetParam("ManualStim.ChangeAmpAmountMilliAmps", typeof(double));
@@ -489,7 +620,7 @@ namespace Summit_Interface
             GroupNumber? stimSweepGroupNum = null;
             ActiveGroup? stimSweepGroupActive = null;
             string startStimSweep = null;
-            int pulseBurstPauseDuration=0;
+            int pulseBurstPauseDuration = 0;
 
             TherapyGroup stimSweepGroupConfig = new TherapyGroup();
             SummitUtils.StimProgramParameters stimSweepProgramParams = new SummitUtils.StimProgramParameters();
@@ -499,7 +630,7 @@ namespace Summit_Interface
             {
                 Console.WriteLine("Configuring stim sweep (single pulse)...");
 
-                SummitUtils.configureStimSweep(parameters, m_summit, "SinglePulseSweep", out m_singlePulseSweeper, 
+                SummitUtils.configureStimSweep(parameters, m_summit, "SinglePulseSweep", out m_singlePulseSweeper,
                     ref stimSweepGroupConfig, ref stimSweepProgramParams, ref configParameters);
 
                 stimSweepGroupNum = configParameters.stimSweepGroupNum;
@@ -519,7 +650,7 @@ namespace Summit_Interface
             }
 
             //if either of them are enabled, then stim sweeping is enabled
-            if(doSinglePulseSweep || doBurstSweep)
+            if (doSinglePulseSweep || doBurstSweep)
             {
                 if (useAuthCommands)
                 {
@@ -559,7 +690,8 @@ namespace Summit_Interface
                             Console.WriteLine("Error during Stim Sweep configuration. Error descriptor:" + aReturn.Descriptor);
                         }
                     }
-                } else
+                }
+                else
                 {
                     Console.WriteLine("Not using Auth commands, make sure the group and program (0) is configured correctly on the RLP!");
                 }
@@ -640,15 +772,6 @@ namespace Summit_Interface
 
             ////Initialize closed-loop threads===============================================
 
-            // setup thread-safe shared resources
-            ThreadResources sharedResources = new ThreadResources();
-            sharedResources.TDbuffer = m_TDBuffer;
-            sharedResources.savingBuffer = m_dataSavingBuffer;
-            sharedResources.summit = m_summit;
-            sharedResources.saveDataFileName = m_dataFileName;
-            sharedResources.samplingRate = doSensing ? samplingRate : TdSampleRates.Disabled;
-            sharedResources.timingLogFile = m_timingLogFile;
-            sharedResources.parameters = parameters;
 
             bool streamToOpenEphys = parameters.GetParam("StreamToOpenEphys", typeof(bool));
 
@@ -727,12 +850,12 @@ namespace Summit_Interface
             }
             m_summit.UnexpectedLinkStatusHandler += SummitLinkStatusReceived;
 
-
             ////Start stim control (user control)=============================================
             Console.WriteLine();
-            Console.WriteLine("Finished setup, giving stim control over to user. Press any key to continue.");
+            Console.WriteLine("Finished setup, giving stim control over to user.");
             Console.WriteLine();
-            ConsoleKeyInfo thekey = Console.ReadKey();
+            //ConsoleKeyInfo thekey = Console.ReadKey();
+            ConsoleKeyInfo thekey = new ConsoleKeyInfo();
 
             string quitKey = parameters.GetParam("QuitButton", typeof(string));
             string stimStatusKey = parameters.GetParam("StimStatusButton", typeof(string));
@@ -745,19 +868,22 @@ namespace Summit_Interface
             if (doManualStim)
             {
                 //default be at manual stim
-                defaultGroupActive = manualGroupActives[0]; 
+                defaultGroupActive = manualGroupActives[0];
                 defaultGroupNum = manualGroupNums[0];
-            } else if (doBurstSweep || doSinglePulseSweep)
+            }
+            else if (doBurstSweep || doSinglePulseSweep)
             {
                 //otherwise default to stim sweep
                 defaultGroupActive = stimSweepGroupActive;
                 defaultGroupNum = stimSweepGroupNum;
-            } else if (doClosedLoopStim)
+            }
+            else if (doClosedLoopStim)
             {
                 //only thing left is closed-loop stim
                 defaultGroupActive = closedLoopGroupActive;
                 defaultGroupNum = closedLoopGroupNum;
-            } else 
+            }
+            else
             {
                 //no stim was set up
                 doStim = false;
@@ -773,10 +899,14 @@ namespace Summit_Interface
             bool stimCurrentlyOn = false; //indicates if stim is on
 
             APIReturnInfo bufferInfo = new APIReturnInfo();
+
+            bool keepCheckingKeys = true;
+
             while (thekey.KeyChar.ToString() != quitKey)
             {
+
                 //interragate stim status
-                if(thekey.KeyChar.ToString() == stimStatusKey && doStim)
+                if (thekey.KeyChar.ToString() == stimStatusKey && doStim)
                 {
                     int? pw;
                     double? amp, freq;
@@ -802,7 +932,7 @@ namespace Summit_Interface
                     {
                         if (thekey.KeyChar.ToString() == manualGroupButtons[iManGroup])
                         {
-                            if (iManGroup==manualStimGroup)
+                            if (iManGroup == manualStimGroup)
                             {
                                 Console.WriteLine(String.Format("Already in Manual stim group {0}!", iManGroup));
                                 continue;
@@ -884,7 +1014,7 @@ namespace Summit_Interface
                     else if (thekey.KeyChar.ToString() == stopManualStim & stimCurrentlyOn)
                     {
                         m_summit.StimChangeStepAmp((byte)manualStimProg, -1 * currentStimAmp.Value, out newStimAmp);
-                        if (newStimAmp!=null)
+                        if (newStimAmp != null)
                         {
                             currentStimAmp = newStimAmp;
                         }
@@ -916,7 +1046,7 @@ namespace Summit_Interface
                     else if (thekey.KeyChar.ToString() == downFreq)
                     {
                         // Decrease the Stimulation Frequency, keep to sense friendly values (
-                        bufferInfo = m_summit.StimChangeStepFrequency(-1*changeFreqAmount.Value, true, out newStimFreq);
+                        bufferInfo = m_summit.StimChangeStepFrequency(-1 * changeFreqAmount.Value, true, out newStimFreq);
                         if (newStimFreq != null)
                         {
                             currentStimFreq = newStimFreq;
@@ -1045,18 +1175,38 @@ namespace Summit_Interface
                 Console.WriteLine(" Command Status:" + bufferInfo.Descriptor);
                 bufferInfo = new APIReturnInfo();
 
+                //quick fix to allow child threads to exit main thread, change the loop so that it polls
+                //non-ideal since it adds some delay to key presses
+                while (Console.KeyAvailable == false)
+                {
+                    if (m_exitProgram.end)
+                    {
+                        keepCheckingKeys = false;
+                        break;
+                    }
+                    Thread.Sleep(250);
+                }
+
+                if (!keepCheckingKeys)
+                {
+                    break;
+                }
+
                 thekey = Console.ReadKey(true);
+
 
             }
 
             ////Close and cleaning up======================================================
             // stop threads
+
             if (streamToOpenEphys)
             {
                 sendSenseThread.StopThread();
                 //getStimThread.StopThread();
             }
             dataSaveThread.StopThread();
+            myRCSThread.StopThread();
 
             // Stop Stim
             if (doManualStim)
@@ -1079,9 +1229,6 @@ namespace Summit_Interface
             m_debugFile.closeFile();
             m_timingLogFile.closeFile();
 
-            // Prompt user for final keypress before closing down the program.
-            Console.WriteLine("Press key to exit");
-            Console.ReadKey();
 
         }
 
@@ -1089,7 +1236,7 @@ namespace Summit_Interface
 
         private static void SummitLinkStatusReceived(object sender, UnexpectedLinkStatusEvent statusEvent)
         {
-            if(statusEvent.TheLinkStatus.OOR)
+            if (statusEvent.TheLinkStatus.OOR)
             {
                 //notify user
                 Console.WriteLine("Stimulation engine is out of range!");
@@ -1110,7 +1257,7 @@ namespace Summit_Interface
         }
 
 
-        
+
         // Sensing data received event handlers
         private static void SummitTimeDomainPacketReceived(object sender, SensingEventTD TdSenseEvent)
         {
@@ -1170,7 +1317,7 @@ namespace Summit_Interface
             //save difference between current and previous packet
             interpParams.prevPacketEstTimeDiff = packetEstTime - m_prevPacketEstTime;
             //one loop is 65536 values
-            int nloops = (int)Math.Floor((double)(packetEstTime - m_prevPacketEstTime)/65536000);
+            int nloops = (int)Math.Floor((double)(packetEstTime - m_prevPacketEstTime) / 65536000);
             m_prevPacketEstTime = packetEstTime;
 
             //number of loops should never be negative
@@ -1189,7 +1336,7 @@ namespace Summit_Interface
                 interpParams.nDroppedPackets = nDroppedPackets;
                 interpParams.samplingRate = m_samplingRate;
                 interpParams.prevValues = m_prevLastValues;
-                
+
                 SummitUtils.InterpolateDroppedSamples(m_TDBuffer, m_dataSavingBuffer, TdSenseEvent, interpParams);
             }
 

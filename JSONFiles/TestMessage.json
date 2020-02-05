@@ -1,0 +1,7 @@
+{
+	"message_type": "result",
+	"message": "stim_status",
+	"payload": {
+	"stim_on": true
+		}
+}

@@ -15,6 +15,7 @@ using System.Threading;
 using Medtronic.SummitAPI.Classes;
 using Medtronic.SummitAPI.Events;
 using Medtronic.TelemetryM;
+using Medtronic.TelemetryM.CtmProtocol.Commands;
 using Medtronic.NeuroStim.Olympus.DataTypes.Core;
 using Medtronic.NeuroStim.Olympus.DataTypes.Sensing;
 using Medtronic.NeuroStim.Olympus.Commands;
@@ -157,6 +158,14 @@ namespace Summit_Interface
             public double[] prevValues;
         }
 
+        /// <summary>   Struct holding all the parameters about sensing. </summary>
+        /// 
+        /// <remarks>   Used to get the senseing setup information from the INS. </remarks>
+        public struct SenseParameters
+        {
+            /// <summary>   The number of time-domain channels. </summary>
+            public int nChans;
+        }
 
         ///-------------------------------------------------------------------------------------------------
         /// <summary>   Reset POR if turning Therapy on failed. </summary>
@@ -200,7 +209,7 @@ namespace Summit_Interface
         ///
         /// <returns>   True if it succeeds, false if it fails. </returns>
         ///-------------------------------------------------------------------------------------------------
-        public static bool SummitConnect(SummitManager theSummitManager, ref SummitSystem theSummit)
+        public static bool SummitConnect(SummitManager theSummitManager, ref SummitSystem theSummit, ref SummitSystemWrapper summitWrapper, ushort teleMode)
         {
             // Bond with any CTMs plugged in over USB
             Console.WriteLine("Checking USB for unbonded CTMs. Please make sure they are powered on.");
@@ -233,20 +242,23 @@ namespace Summit_Interface
             SummitSystem tempSummit = null;
             for (int i = 0; i < theSummitManager.GetKnownTelemetry().Count; i++)
             {
-                ManagerConnectStatus connectReturn = theSummitManager.CreateSummit(out tempSummit, theSummitManager.GetKnownTelemetry()[i]);
+                ManagerConnectStatus connectReturn = theSummitManager.CreateSummit(out theSummit, theSummitManager.GetKnownTelemetry()[i], telemetryMode: teleMode,
+                    ctmBeepEnables: (CtmBeepEnables.NoDeviceDiscovered | CtmBeepEnables.GeneralAlert | CtmBeepEnables.TelMLost));
 
                 // Write out the result
                 Console.WriteLine("Create Summit Result: " + connectReturn.ToString());
 
-                // Break if it failed successful
+                // Break if successful
                 if (connectReturn == ManagerConnectStatus.Success)
                 {
+                    //add summit system to wrapper
+                    summitWrapper.setSummit(ref theSummit);
                     break;
                 }
             }
 
             // Make sure telemetry was connected to, if not fail
-            if (tempSummit == null)
+            if (theSummit == null)
             {
                 // inform user that CTM was not successfully connected to
                 Console.WriteLine("SummitConnect: Failed to connect to CTM, returning false...");
@@ -261,7 +273,7 @@ namespace Summit_Interface
                 List<DiscoveredDevice> discoveredDevices;
                 do
                 {
-                    tempSummit.OlympusDiscovery(out discoveredDevices);
+                    theSummit.OlympusDiscovery(out discoveredDevices);
                 } while (discoveredDevices.Count == 0);
 
                 // Report Discovery Results to User
@@ -282,7 +294,7 @@ namespace Summit_Interface
                 int i = 0;
                 do
                 {
-                    connectReturn = tempSummit.StartInsSession(discoveredDevices[0], out theWarnings, true);
+                    connectReturn = theSummit.StartInsSession(discoveredDevices[0], out theWarnings, true);
                     i++;
                 } while (theWarnings.HasFlag(ConnectReturn.InitializationError));
 
@@ -293,14 +305,14 @@ namespace Summit_Interface
                 if (connectReturn.RejectCode != 0)
                 {
                     Console.WriteLine("Summit Initialization: INS failed to connect");
-                    theSummitManager.DisposeSummit(tempSummit);
+                    theSummitManager.DisposeSummit(theSummit);
                     return false;
                 }
                 else
                 {
                     // Write out the warnings if they exist
                     Console.WriteLine("Summit Initialization: INS connected, warnings: " + theWarnings.ToString());
-                    theSummit = tempSummit;
+                    //theSummit = tempSummit;
 
                     APIReturnInfo success = theSummit.WriteTelemetryParameters(4, 4);
                     return true;
@@ -1642,8 +1654,659 @@ namespace Summit_Interface
         }
 
 
+        ///-------------------------------------------------------------------------------------------------
+        /// <summary>   Get device information such as battery, sense/stim status, sense/stim config, 
+        ///             ect. </summary>
+        ///
+        /// <param name="theSummit">        Buffer for td data. </param>
+        /// <param name="payload">          Buffer for data saving data. </param>
+        /// <param name="TdSenseEvent">     The td sense event. </param>
+        /// <param name="interpParams">     Options for controlling the interp. </param>
+        /// 
+        /// <returns>   True if it succeeds, false if it fails. </returns>
+        ///-------------------------------------------------------------------------------------------------
+        public static bool ConvertEnumsToValues(string enumName, string enumType, out double value)
+        {
+            int nChars = enumName.Length;
+            value = 0;
+
+            switch (enumType)
+            {
+                case "TdMuxInputs":
+                    //it's a time domain electrode enum
+                    if (!Enum.IsDefined(typeof(TdMuxInputs), enumName))
+                    {
+                        return false;
+                    }
+
+                    if (enumName == "Floating")
+                    {
+                        value = 16;
+                        return true;
+                    }
+                    else
+                    {
+                        if (!double.TryParse(enumName.Substring(3), out value))
+                        {
+                            return false;
+                        }
+
+                        return true;
+                    }
+                    break;
+
+
+                case "TdLpfStage1":
+                case "TdLpfStage2":
+                    //it's a stage 1 LPF value, remove the "lpf" and the "hz" parts
+                    if (!Enum.IsDefined(typeof(TdLpfStage1), enumName) && !Enum.IsDefined(typeof(TdLpfStage2), enumName))
+                    {
+                        return false;
+                    }
+
+                    if (!double.TryParse(enumName.Substring(3, nChars - 5), out value))
+                    {
+                        return false;
+                    }
+                    return true;
+                    break;
+
+
+                case "TdHpfs":
+                    //it's a stage HPF value, remove the "hpf" and the "hz" parts, and replace "_" with "."
+                    if (!Enum.IsDefined(typeof(TdHpfs), enumName))
+                    {
+                        return false;
+                    }
+
+                    if (!double.TryParse(enumName.Substring(3, nChars - 5).Replace('_', '.'), out value))
+                    {
+                        return false;
+                    }
+                    //for some reason it parses 0.85 as some number really close to 0.85 but not exactly
+                    //value = Convert.ToSingle(Math.Round(value, 3));
+                    return true;
+                    break;
+
+
+                case "TdSampleRates":
+                    //it's a sampling rate, remove the "Sample" and the "hz" parts
+                    if (!Enum.IsDefined(typeof(TdSampleRates), enumName))
+                    {
+                        return false;
+                    }
+
+                    if (enumName == "Disabled")
+                    {
+                        value = 0;
+                        return true;
+                    }
+                    if (!double.TryParse(enumName.Substring(6, nChars - 8), out value))
+                    {
+                        return false;
+                    }
+                    return true;
+                    break;
+
+
+                case "FftSizes":
+                    //it's a FFT window size, remove the "Size" part
+                    if (!Enum.IsDefined(typeof(FftSizes), enumName))
+                    {
+                        return false;
+                    }
+
+                    if (!double.TryParse(enumName.Substring(4, nChars - 4), out value))
+                    {
+                        return false;
+                    }
+                    return true;
+                    break;
+
+
+                case "GroupNumber":
+                    //enum for stim group number, just remove the "Group" part
+                    if (!Enum.IsDefined(typeof(GroupNumber), enumName))
+                    {
+                        return false;
+                    }
+
+                    if (!double.TryParse(enumName.Substring(5), out value))
+                    {
+                        return false;
+                    }
+                    return true;
+                    break;
+
+
+                case "InterrogateTherapyStatusTypes":
+                    //enum for stim group number, just remove the "Group" part
+                    if (!Enum.IsDefined(typeof(InterrogateTherapyStatusTypes), enumName))
+                    {
+                        return false;
+                    }
+
+                    if (enumName == "TherapyActive" || enumName == "TransitionToActive")
+                    {
+                        value = 1;
+                        return true;
+                    }
+                    else
+                    {
+                        value = 0;
+                        return true;
+                    }
+                    break;
+
+
+
+                case "ProgramEnables":
+                    //enum for whether a stim program is enabled or not
+                    if (!Enum.IsDefined(typeof(ProgramEnables), enumName))
+                    {
+                        return false;
+                    }
+
+                    if (enumName.Contains("Enabled"))
+                    {
+                        value = 1;
+                        return true;
+                    } 
+                    else if (enumName.Contains("Disabled"))
+                    {
+                        value = 0;
+                        return true;
+                    }
+                    else
+                    {
+                        value = 0;
+                        return true;
+                    }
+                    break;
+
+
+                case "ActiveRechargeRatios":
+                    //if it's active vs passive recharge
+                    if (!Enum.IsDefined(typeof(ActiveRechargeRatios), enumName))
+                    {
+                        return false;
+                    }
+
+                    if (enumName == "PassiveOnly")
+                    {
+                        value = 0;
+                        return true;
+                    }
+                    else
+                    {
+                        value = 1;
+                        return true;
+                    }
+                    break;
+
+            }
+
+            return false;
+        }
+
+
+        ///-------------------------------------------------------------------------------------------------
+        /// <summary>   Get device information such as battery, sense/stim status, sense/stim config, 
+        ///             ect. </summary>
+        ///
+        /// <param name="theSummit">        The summit object to talk to the INS. </param>
+        /// <param name="payload">          Output Payload structure, for sending to MyRcpS. </param>
+        /// <param name="parseErrorCode">   Indicates whether there was an error in the parsing of the
+        ///                                 data from the INS (rather than an error in talking to the
+        ///                                 INS). 
+        ///                                 0 - No error in parsing (though still could have INS error)
+        ///                                 1 - Error in parsing Enums
+        ///                                 2 - # of power bands != # of time domain channels 
+        ///                                 3 - found two anodes for a stim program
+        ///                                 4 - found two cathodes for a stim program
+        ///                                 5 - couldn't find anode or cathode for a stim program </param>
+        /// 
+        /// <returns>   The summit error code (which could be no error). </returns>
+        ///-------------------------------------------------------------------------------------------------
+        public static APIReturnInfo QueryDeviceStatus(SummitSystem theSummit, out StreamingThread.MyRCSMsg.Payload payload, out int parseErrorCode)
+        {
+            payload = new StreamingThread.MyRCSMsg.Payload();
+            parseErrorCode = 0;
+
+            //run queries using the summit API functions
+            APIReturnInfo commandInfo = new APIReturnInfo();
+
+            //first get sense info
+            SensingConfiguration sensingConfig = new SensingConfiguration();
+            commandInfo = theSummit.ReadSensingSettings(out sensingConfig);
+            if (commandInfo.RejectCode != 0)
+            {
+                return commandInfo;
+            }
+
+            //parse sense config values
+            //time domain config
+            string enumName;
+            int nChannels = sensingConfig.TimeDomainChannels.Count();
+            for (int iChan = 0; iChan <= nChannels - 1; iChan++)
+            {
+
+                //first, see which contacts are used for each channel
+                int boreOffset = 0;
+                if (iChan > 1)
+                {
+                    boreOffset = 8;
+                }
+
+                double anodeChan, cathodeChan;
+
+                enumName = sensingConfig.TimeDomainChannels[iChan].PlusInput.ToString();
+                if (!ConvertEnumsToValues(enumName, "TdMuxInputs", out anodeChan))
+                {
+                    parseErrorCode = 1;
+                    return commandInfo;
+                }
+                if (anodeChan != 16)
+                {
+                    anodeChan = anodeChan + boreOffset;
+                }
+
+                enumName = sensingConfig.TimeDomainChannels[iChan].MinusInput.ToString();
+                if(!ConvertEnumsToValues(enumName, "TdMuxInputs", out cathodeChan))
+                {
+                    parseErrorCode = 1;
+                    return commandInfo;
+                }
+                if (cathodeChan != 16)
+                {
+                    cathodeChan = cathodeChan + boreOffset;
+                }
+
+                payload.sense_config.anodes.Add(Convert.ToUInt16(anodeChan));
+                payload.sense_config.cathodes.Add(Convert.ToUInt16(cathodeChan));
+
+                //next get the filter values for each channel
+                double lpf1Value, lpf2Value, hpfValue;
+
+                enumName = sensingConfig.TimeDomainChannels[iChan].Lpf1.ToString();
+                if(!ConvertEnumsToValues(enumName, "TdLpfStage1", out lpf1Value))
+                {
+                    parseErrorCode = 1;
+                    return commandInfo;
+                }
+                payload.sense_config.lowpass_filter1.Add(Convert.ToUInt16(lpf1Value));
+
+                enumName = sensingConfig.TimeDomainChannels[iChan].Lpf2.ToString();
+                if(!ConvertEnumsToValues(enumName, "TdLpfStage2", out lpf2Value))
+                {
+                    parseErrorCode = 1;
+                    return commandInfo;
+                }
+                payload.sense_config.lowpass_filter2.Add(Convert.ToUInt16(lpf2Value));
+
+                enumName = sensingConfig.TimeDomainChannels[iChan].Hpf.ToString();
+                if(!ConvertEnumsToValues(enumName, "TdHpfs", out hpfValue))
+                {
+                    parseErrorCode = 1;
+                    return commandInfo;
+                }
+                payload.sense_config.highpass_filter.Add(hpfValue);
+                
+                //then the sampling rates
+                double samplingRate;
+                enumName = sensingConfig.TimeDomainChannels[iChan].SampleRate.ToString();
+                if(!ConvertEnumsToValues(enumName, "TdSampleRates", out samplingRate))
+                {
+                    parseErrorCode = 1;
+                    return commandInfo;
+                }
+                payload.sense_config.sampling_rates.Add(Convert.ToUInt16(samplingRate));
+            }
+
+            //fft config
+            double fftSize, fftWindowLoad, fftStreamSize, fftStreamOffset;
+
+            enumName = sensingConfig.FftConfig.Size.ToString();
+            if (!ConvertEnumsToValues(enumName, "FftSizes", out fftSize))
+            {
+                parseErrorCode = 1;
+                return commandInfo;
+            }
+            payload.sense_config.FFT_size = Convert.ToUInt16(fftSize);
+
+            payload.sense_config.FFT_interval = sensingConfig.FftConfig.Interval;
+            payload.sense_config.FFT_windowing_on = sensingConfig.FftConfig.WindowEnabled;
+            payload.sense_config.FFT_window_load = sensingConfig.FftConfig.WindowLoad.ToString();
+            payload.sense_config.FFT_stream_size = sensingConfig.FftConfig.StreamSizeBins;
+            payload.sense_config.FFT_stream_offset = sensingConfig.FftConfig.StreamOffsetBins;
+            
+            //now get the power bands
+            if (sensingConfig.PowerChannels.Count() != nChannels)
+            {
+                //the number of power band channels must equal the number of time domain channels
+                parseErrorCode = 2;
+                return commandInfo;
+            }
+            
+            for (int iChan = 0; iChan <= nChannels - 1; iChan++)
+            {
+                payload.sense_config.powerband1_lower_cutoff.Add(sensingConfig.PowerChannels[iChan].Band0Start);
+                payload.sense_config.powerband1_upper_cutoff.Add(sensingConfig.PowerChannels[iChan].Band0Stop);
+                payload.sense_config.powerband2_lower_cutoff.Add(sensingConfig.PowerChannels[iChan].Band1Start);
+                payload.sense_config.powerband2_upper_cutoff.Add(sensingConfig.PowerChannels[iChan].Band1Stop);
+
+                if (!Enum.TryParse<BandEnables>("Ch" + iChan.ToString() + "Band0Enabled", out BandEnables enabledEnum1) ||
+                    !Enum.TryParse<BandEnables>("Ch" + iChan.ToString() + "Band1Enabled", out BandEnables enabledEnum2))
+                {
+                    //for some reason couldn't get the enum name, double check the enum values names
+                    parseErrorCode = 1;
+                    return commandInfo;
+                }
+
+                payload.sense_config.powerband1_enabled.Add(sensingConfig.BandEnable.HasFlag(enabledEnum1));
+                payload.sense_config.powerband2_enabled.Add(sensingConfig.BandEnable.HasFlag(enabledEnum2));
+            }
+
+            SensingState sensingState = new SensingState();
+            commandInfo = theSummit.ReadSensingState(out sensingState);
+            commandInfo = theSummit.ReadSensingStreamState(out StreamState streamState);
+            if (commandInfo.RejectCode != 0)
+            {
+                return commandInfo;
+            }
+
+            payload.sense_config.time_domain_on = streamState.TimeDomainStreamEnabled;
+            payload.sense_config.FFT_on = streamState.FftStreamEnabled;
+            payload.sense_config.accel_on = streamState.AccelStreamEnabled;
+            payload.sense_config.powerbands_on = streamState.PowerDomainStreamEnabled;
+
+            payload.sense_on = streamState.TimeDomainStreamEnabled || streamState.FftStreamEnabled || streamState.PowerDomainStreamEnabled;
+
+            //next, get stimulation info
+            GeneralInterrogateData insGeneralInfo;
+            commandInfo = theSummit.ReadGeneralInfo(out insGeneralInfo);
+            if (commandInfo.RejectCode != 0)
+            {
+                return commandInfo;
+            }
+
+            //the current active group
+            enumName = insGeneralInfo.TherapyStatusData.ActiveGroup.ToString();
+            double currentGroup;
+            if (!ConvertEnumsToValues(enumName, "GroupNumber", out currentGroup))
+            {
+                parseErrorCode = 1;
+                return commandInfo;
+            }
+            payload.stim_config.current_group = Convert.ToUInt16(currentGroup);
+
+            //whether stim is currently on or not
+            enumName = insGeneralInfo.TherapyStatusData.TherapyStatus.ToString();
+            double stimOn;
+            if (!ConvertEnumsToValues(enumName, "InterrogateTherapyStatusTypes", out stimOn))
+            {
+                parseErrorCode = 1;
+                return commandInfo;
+            }
+            payload.stim_on = (stimOn == 1);
+
+            //go through each therapy group
+            TherapyGroup groupSettings = new TherapyGroup();
+            AmplitudeLimits ampLimits = new AmplitudeLimits();
+            
+            foreach (GroupNumber iGroup in Enum.GetValues(typeof(GroupNumber)))
+            {
+                double thisGroupNum;
+                if (!ConvertEnumsToValues(iGroup.ToString(), "GroupNumber", out thisGroupNum))
+                {
+                    parseErrorCode = 1;
+                    return commandInfo;
+                }
+                int iGroupInd = Convert.ToInt16(thisGroupNum);
+
+                commandInfo = theSummit.ReadStimGroup(iGroup, out groupSettings);
+                if (commandInfo.RejectCode != 0)
+                {
+                    return commandInfo;
+                }
+
+                commandInfo = theSummit.ReadStimAmplitudeLimits(iGroup, out ampLimits);
+                if (commandInfo.RejectCode != 0)
+                {
+                    return commandInfo;
+                }
+
+                //first get the program-indepdent configurations (pretty straight forward)
+                payload.stim_config.pulsewidth_lower_limit.Add(Convert.ToUInt16(groupSettings.PulseWidthLowerLimitInMicroseconds));
+                payload.stim_config.pulsewidth_upper_limit.Add(Convert.ToUInt16(groupSettings.PulseWidthUpperLimitInMicroseconds));
+                payload.stim_config.frequency_lower_limit.Add(Convert.ToDouble(groupSettings.RateLowerLimitInHz));
+                payload.stim_config.frequency_upper_limit.Add(Convert.ToDouble(groupSettings.RateUpperLimitInHz));
+                payload.stim_config.current_frequency.Add(Convert.ToDouble(groupSettings.RateInHz));
+
+                //now add the program-specific info
+                payload.stim_config.anodes.Add(new List<ushort>());
+                payload.stim_config.cathodes.Add(new List<ushort>());
+                payload.stim_config.current_pulsewidth.Add(new List<ushort>());
+                payload.stim_config.amplitude_lower_limit.Add(new List<double>());
+                payload.stim_config.amplitude_upper_limit.Add(new List<double>());
+                payload.stim_config.current_amplitude.Add(new List<double>());
+                payload.stim_config.active_recharge.Add(new List<bool>());
+
+                UInt16 nPrograms = 0;
+                for (int iProg = 0; iProg < groupSettings.Programs.Count(); iProg++)
+                {
+                    //first determine if the program is defined (for some reason, it seems like there's always 4 programs
+                    //even when less than 4 are defined. It'll just put the defined ones first and set the rest as disabled).
+                    //So I'm assuming disabled is equivalent to undefined.
+                    enumName = groupSettings.Programs[iProg].IsEnabled.ToString();
+                    double enabled;
+                    if (!ConvertEnumsToValues(enumName, "ProgramEnables", out enabled))
+                    {
+                        parseErrorCode = 1;
+                        return commandInfo;
+                    }
+                    if (enabled==0)
+                    {
+                        //program isn't a real program that's been defined
+                        continue;
+                    }
+                    else
+                    {
+                        nPrograms++;
+                    }
+
+                    //first, find out which channels are the anodes and cathodes for this program
+                    TherapyElectrodes electrodesInfo = groupSettings.Programs[iProg].Electrodes;
+                    
+                    int anode = -1, cathode = -1;
+                    for (int iElec = 0; iElec < electrodesInfo.Count; iElec++)
+                    {
+                        if (!electrodesInfo[iElec].IsOff && electrodesInfo[iElec].ElectrodeType == ElectrodeTypes.Anode)
+                        {
+                            if (anode != -1)
+                            {
+                                //an anode was already found, so we have two anodes which shouldn't happen
+                                parseErrorCode = 3;
+                                return commandInfo;
+                            }
+                            anode = iElec;
+                        }
+                        if (!electrodesInfo[iElec].IsOff && electrodesInfo[iElec].ElectrodeType == ElectrodeTypes.Cathode)
+                        {
+                            if (cathode != -1)
+                            {
+                                //an cathode was already found, so we have two cathode which shouldn't happen
+                                parseErrorCode = 4;
+                                return commandInfo;
+                            }
+                            cathode = iElec;
+                        }
+                    }
+
+                    //if either anode or cathode hasn't been found, then something is wrong, otherwise, just add to the list
+                    if (anode == -1 || cathode == -1)
+                    {
+                        parseErrorCode = 5;
+                        return commandInfo;
+                    }
+                    payload.stim_config.anodes[iGroupInd].Add(Convert.ToUInt16(anode));
+                    payload.stim_config.cathodes[iGroupInd].Add(Convert.ToUInt16(cathode));
+
+                    //add the rest of the information
+                    payload.stim_config.current_pulsewidth[iGroupInd].Add(Convert.ToUInt16(groupSettings.Programs[iProg].PulseWidthInMicroseconds));
+                    payload.stim_config.current_amplitude[iGroupInd].Add(groupSettings.Programs[iProg].AmplitudeInMilliamps);
+                    
+                    enumName = groupSettings.Programs[iProg].MiscSettings.ActiveRechargeRatio.ToString();
+                    if (!ConvertEnumsToValues(enumName, "ActiveRechargeRatios", out enabled))
+                    {
+                        parseErrorCode = 1;
+                        return commandInfo;
+                    }
+                    payload.stim_config.active_recharge[iGroupInd].Add(enabled==1);
+
+                    //now add the amplitude limits
+                    object lowLimit = typeof(AmplitudeLimits).GetProperty("Prog" + iProg.ToString() + "LowerInMilliamps").GetValue(ampLimits, null);
+                    object upLimit = typeof(AmplitudeLimits).GetProperty("Prog" + iProg.ToString() + "UpperInMilliamps").GetValue(ampLimits, null);
+                    payload.stim_config.amplitude_lower_limit[iGroupInd].Add(Convert.ToDouble(lowLimit));
+                    payload.stim_config.amplitude_upper_limit[iGroupInd].Add(Convert.ToDouble(upLimit));
+                }
+
+                //send the total number of valid programs
+                payload.stim_config.number_of_programs.Add(nPrograms);
+            }
+
+            //finally get battery level
+            payload.battery_level = Convert.ToUInt16(insGeneralInfo.BatteryStatus);
+
+            return commandInfo;
+        }
+
+
+        ///-------------------------------------------------------------------------------------------------
+        /// <summary>   Change frequency, amplitude, or PW of a specific group/program. </summary>
+        ///
+        /// <param name="theSummit">        Summit system object. </param>
+        /// <param name="targetGroup">      The group to do the change on. </param>
+        /// <param name="programToChange">       The program to do the change on. </param>
+        /// <param name="parameter">        Which parameter to change (amp, freq, or PW). </param>
+        /// <param name="targetValue">      The value to change the parameter to. </param>
+        /// <param name="useSenseFriendly"> If parameter is freq, whether to only use sense friendly
+        ///                                 rates or not. </param>
+        /// <param name="parseErrorCode">   Indicates whether there was an error in the parsing of the
+        ///                                 data from the INS or from the inputted parameters
+        ///                                 (rather than an error in talking to the INS). 
+        ///                                 0 - No error in parsing (though still could have INS error)
+        ///                                 6 - Error parsing target group
+        ///                                 7 - target program not within 0-3
+        ///                                 8 - parameter is not "frequency", "amplitude", or "pulse_width"
+        /// 
+        /// <returns>   The summit error code (which could be no error). </returns>
+        ///-------------------------------------------------------------------------------------------------
+        public static APIReturnInfo ChangeStimParameter(SummitSystem theSummit, int targetGroup, int programToChange,
+            string parameter, double targetValue, bool useSenseFriendly, out int parseErrorCode, out double? newValue)
+        {
+
+            APIReturnInfo commandInfo = new APIReturnInfo();
+            ActiveGroup groupToChangeActive = new ActiveGroup();
+            GroupNumber groupToChange = new GroupNumber();
+            parseErrorCode = 0;
+            newValue = null;
+
+            //get which group to change
+            try
+            {
+                groupToChangeActive = (ActiveGroup)Enum.Parse(typeof(ActiveGroup),
+                    "Group" + targetGroup.ToString());
+
+                groupToChange = (GroupNumber)Enum.Parse(typeof(GroupNumber),
+                    "Group" + targetGroup.ToString());
+            }
+            catch
+            {
+                //was unable to determine which group to do the change on
+                parseErrorCode = 6;
+                return commandInfo;
+            }
+
+            //see if group to change is the same as current active group
+            //get the current active group from the INS
+            GeneralInterrogateData insGeneralInfo;
+            commandInfo = theSummit.ReadGeneralInfo(out insGeneralInfo);
+            if (commandInfo.RejectCode != 0)
+            {
+                //problem reading the current active group from the INS
+                return commandInfo;
+            }
+            ActiveGroup activeGroup = insGeneralInfo.TherapyStatusData.ActiveGroup;
+
+            //change current active stim group to the one that's being changed if they're different
+            if (groupToChangeActive != activeGroup)
+            {
+                commandInfo = theSummit.StimChangeActiveGroup(groupToChangeActive);
+            }
+            if (commandInfo.RejectCode != 0)
+            {
+                //problem getting the INS to change the group
+                return commandInfo;
+            }
+
+            //next, check that to program number is within 0-3
+            if (programToChange < 0 || programToChange > 3)
+            {
+                //incorrect program number
+                parseErrorCode = 7;
+                return commandInfo;
+            }
+
+            //to calculate how much to increment/decrement by to get to the desired value, first need to get current values from INS
+            TherapyGroup groupSettings = new TherapyGroup();
+            commandInfo = theSummit.ReadStimGroup(groupToChange, out groupSettings);
+            if (commandInfo.RejectCode != 0)
+            {
+                //problem reading the stim info from the INS
+                return commandInfo;
+            }
+
+            //now do the actual parameter change
+            switch (parameter)
+            {
+                case "amplitude":
+                    double currentAmp = groupSettings.Programs[programToChange].AmplitudeInMilliamps;
+                    double stepAmount = targetValue - currentAmp;
+                    commandInfo = theSummit.StimChangeStepAmp((byte)programToChange, stepAmount, out newValue);
+                    break;
+
+                case "frequency":
+                    double currentFreq = groupSettings.RateInHz;
+                    stepAmount = targetValue - currentFreq;
+                    commandInfo = theSummit.StimChangeStepFrequency(stepAmount, useSenseFriendly, out newValue);
+                    break;
+
+                case "pulse_width":
+                    double currentPW = groupSettings.Programs[programToChange].PulseWidthInMicroseconds;
+                    stepAmount = targetValue - currentPW;
+                    int? newValueInt;
+                    commandInfo = theSummit.StimChangeStepPW((byte)programToChange, (int)stepAmount, out newValueInt);
+                    newValue = newValueInt;
+                    break;
+
+                default:
+                    //parameter has to be one of the above, throw error otherwise
+                    parseErrorCode = 8;
+                    return commandInfo;
+
+            }
+
+            return commandInfo;
+
+        }
+
+
+
+
 
         //
+
 
     }
 
