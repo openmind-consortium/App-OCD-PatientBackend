@@ -13,22 +13,22 @@
 	"StimStatusButton": "s",
 	"StimConfigButton": "g",
 	"HideConsole": false,
-	"NoDeviceTesting": false,
-	"TelemetryMode": 4,
+	"NoDeviceTesting": true,
+	"TelemetryMode": 3,
 
     "Sense": {
         "comment_Channel_Definitions": "No more than two channels can be on a single bore. When configuring, channels on first bore will always be first. Can only have sampling rates of: 250, 500, and 1000 (Hz), packet period can be 30, 40, 50, 60, 70, 80, 90, or 100 (ms)",
         "Enabled": true,
         "APITimeSync": true,
-        "SaveFileName": "C:\\Users\\dyxing\\Desktop\\Tmp\\SalineTest.txt",
+        "SaveFileName": "C:\\Users\\broarr\\Desktop\\SalineTest.txt",
         "BufferSize": 1000,
         "ZMQPort": 5555,
         "InterpolateMissingPackets": false,
-        "SamplingRate": 1000,
+        "SamplingRate": 250,
         "PacketPeriod": 50,
         "nChans": 2,
-        "Anode": [ 7, 0],
-        "Cathode": [ 6, 1 ],
+        "Anode": [ 0, 8],
+        "Cathode": [ 2, 10 ],
 
         "comment_Filters": "Stage one low pass can only be: 450, 100, or 50 (Hz). Stage two low pass can only be: 1700, 350, 160, or 100 (Hz). High pass can only be: 0.85, 1.2, 3.3, or 8.6 (Hz)",
         "LowPassCutoffStage1": [ 450, 450 ],
@@ -37,7 +37,7 @@
 
         "FFT": {
             "comment_FFT_Parameters": "FFT Size can be: 64, 256, or 1024 samples, Hanning window load can be: 25, 50, or 100 (%)",
-            "Enabled": true,
+            "Enabled": false,
             "Channel": 1,
             "FFTSize": 1024,
             "FFTInterval": 500,
@@ -49,8 +49,8 @@
 
         "BandPower": {
             "comment_BandPower": "must be same number as nChans, and the position in the array corresponds to the position for the sense chans",
-            "FirstBandEnabled": [ true, true ],
-            "SecondBandEnabled": [ true, true ],
+            "FirstBandEnabled": [ false, false ],
+            "SecondBandEnabled": [ false, false ],
             "FirstBandLower": [ 10, 20 ],
             "FirstBandUpper": [ 11, 21 ],
             "SecondBandLower": [ 12, 22 ],
@@ -60,7 +60,7 @@
 
     "ManualStim": {
         "comment_ManualStim": "Cannot use same electrodes as sense and closed-loop stim? Stim amplitudes have a resolution of 0.1 mA, so any more significant digits past that will just be rounded. Similarly, pulse widths have a resolution of 10 us so numbers in the one's digit will just be rounded",
-        "Enabled": true,
+        "Enabled": false,
 
         "StartButton": "o",
         "StopButton": "p",

@@ -173,7 +173,7 @@ namespace Summit_Interface
             System.IO.StreamWriter m_impedanceFile = new System.IO.StreamWriter(m_dataFileName + "-Impedance.txt");
 
             // Create a manager
-            SummitManager theSummitManager = new SummitManager("BSI");
+            SummitManager theSummitManager = new SummitManager("BSI", verboseTraceLogging:true);
 
             // setup thread-safe shared resources
             bool doSensing = parameters.GetParam("Sense.Enabled", typeof(bool));
