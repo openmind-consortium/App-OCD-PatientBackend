@@ -205,6 +205,11 @@ namespace Summit_Interface
             Thread.Sleep(5000);
             ushort mode = (ushort)parameters.GetParam("TelemetryMode", typeof(int));
 
+            if (!noDeviceTesting)
+            {
+                goto BigLoop;                
+            }
+
             // Connect to CTM and INS
             while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper, mode))
             {
@@ -485,6 +490,7 @@ namespace Summit_Interface
 
             ////Configure Manual Stim=========================================================
 
+BigLoop:
             bool doManualStim = parameters.GetParam("ManualStim.Enabled", typeof(bool));
             bool useAuthCommands = !parameters.GetParam("RLPStimSetup", typeof(bool));
             List<GroupNumber?> manualGroupNums = new List<GroupNumber?>();
