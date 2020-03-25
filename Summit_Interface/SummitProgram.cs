@@ -205,7 +205,7 @@ namespace Summit_Interface
             Thread.Sleep(5000);
             ushort mode = (ushort)parameters.GetParam("TelemetryMode", typeof(int));
 
-            if (!noDeviceTesting)
+            if (noDeviceTesting)
             {
                 goto BigLoop;                
             }

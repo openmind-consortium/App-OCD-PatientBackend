@@ -13,7 +13,7 @@
 	"StimStatusButton": "s",
 	"StimConfigButton": "g",
 	"HideConsole": false,
-	"NoDeviceTesting": true,
+	"NoDeviceTesting": false,
 	"TelemetryMode": 3,
 
     "Sense": {
