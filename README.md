@@ -340,15 +340,18 @@ Installation
 --------------------------
 # Install medtronic dependencies
 
+## Download ORCA
+1. Go to dropbox to download ORCA: SummitRegWithoutORCA.reg
+https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0
+1. Double click the file to add the changes to the registry
+
 ## For deployed version:
-Go to lab dropbox to install USB driver for CTM (click on .exe and run):
+1. Go to lab dropbox to install USB driver for CTM (click on .exe and run):
 https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0/Drivers%20and%20Installers
+1. Go to dropbox to download visual studio redistributable: https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0/Drivers%20and%20Installers/Visual%20Studio%20Redistributable
 
 ## To compile from sourcecode: 
 1. Install visual studio, including the workload for .net desktop development: https://visualstudio.microsoft.com/downloads/
-1. Go to dropbox to download visual studio redistributable: https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0/Drivers%20and%20Installers/Visual%20Studio%20Redistributable
-1. Go to dropbox to download ORCA: SummitRegWithoutORCA.reg
-https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0
 1. Copy DLLs dropbox folder from Dropbox to local machine (take note of location)
 https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0/DLLs
 1. Clone github repository: https://github.com/neuromotion/summit-interface-borton
@@ -363,12 +366,13 @@ https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%
 1. If you want to use the default .json parameters files:
    1. Go into summit-interface-borton\JSONFiles\ExampleParametersFile, and edit line 23 to make sure the path exists on the local machine
 1. To use the JSON files for the UH3 OCD study, download them from the lab dropbox, and place them in a folder called C:/JSONFiles
+https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/JSONFiles
 
 ## Launcher
 1. To make launch icon, make new text document called 'MyRCpS'
 1. Install front end application from installer in released version if you haven't done so already: https://github.com/neuromotion/rcps-frontend-electron)
 1. In *DOUBLE* quotes, write full file path location of Summit_Interface.exe and the MyRCpS front end application
-`"..\AppData\Local\rcps_ember\rcps-ember.exe"
-"..\GitHub\summit-interface-borton\Summit_Interface\bin\x64\Debug\Summit_Interface.exe"`
+`"..\AppData\Local\rcps_ember\rcps-ember.exe"`<br/>
+`"..\GitHub\summit-interface-borton\Summit_Interface\bin\x64\Debug\Summit_Interface.exe"`
 1. Save as a `.bat` file
 1. Launch the backend and frontend together by double clicking on the .bat file
