@@ -335,3 +335,47 @@ Below is an oscilloscope reading of the input sense data stream to the RC+S (top
 The code that handles interfacing with Open-ephys is encapsulated by the [StreamingThread](https://github.com/neuromotion/summit-interface-borton/tree/master/Summit_Interface/StreamingThread.cs) class. The method responsible for sending data to Open-ephys is `SendSense()` while the method which handles incoming data from Open-ephys is `GetStim()`. The `StreamingThread` class has an additional method `SaveData()` which is responsible for saving the time-domain data to a delimited text file on the hard drive.
 
 The main program initializes an instance of `StreamingThread` by indicating which of the three functions to run. `StartThread()` is then called to run the function, until `StopThread()` is called.
+
+Installation
+--------------------------
+### Install medtronic dependencies
+
+#### Disable ORCA:
+1. Go to dropbox to download ORCA: SummitRegWithoutORCA.reg
+https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0
+1. Double click the file to add the changes to the registry
+
+#### Install CTM driver:
+Go to lab dropbox to install USB driver for CTM (click on .exe and run):
+https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0/Drivers%20and%20Installers
+
+### Install deployed version:
+Go to dropbox to download visual studio redistributable:
+https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0/Drivers%20and%20Installers/Visual%20Studio%20Redistributable
+
+### To compile from sourcecode: 
+1. Install visual studio, including the workload for .net desktop development: https://visualstudio.microsoft.com/downloads/
+1. Copy DLLs dropbox folder from Dropbox to local machine (take note of location)
+https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0/DLLs
+1. Clone github repository: https://github.com/neuromotion/summit-interface-borton
+1. Double click on Summit_Interface.sln in cloned repository. 
+1. In solution explorer in Visual studio, open the Summit_Interface dropdown and right click on References (2nd one down).
+1. Click on 'add reference'
+1. Click on browse on the left panel of the window that pops up, and then click browse again at the bottom
+1. Navigate to folder where DLLs folder is saved locally, and then go in the folder, select all the files, and click add, and then hit OK
+1. To compile, go to top bar of visual studio, select build-> build solution
+
+### JSONFiles
+1. If you want to use the default .json parameters files:
+   1. Go into summit-interface-borton\JSONFiles\ExampleParametersFile, and edit line 23 to make sure the path exists on the local machine
+1. To use the JSON files for the UH3 OCD study, download them from the lab dropbox, and place them in a folder called C:/JSONFiles
+https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/JSONFiles
+
+### Launcher
+1. To make launch icon, make new text document called 'MyRCpS'
+1. Install front end application from installer in released version if you haven't done so already: https://github.com/neuromotion/rcps-frontend-electron)
+1. In *DOUBLE* quotes, write full file path location of Summit_Interface.exe and the MyRCpS front end application
+`"..\AppData\Local\rcps_ember\rcps-ember.exe"`<br/>
+`"..\GitHub\summit-interface-borton\Summit_Interface\bin\x64\Debug\Summit_Interface.exe"`
+1. Save as a `.bat` file
+1. Launch the backend and frontend together by double clicking on the .bat file
