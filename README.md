@@ -340,7 +340,7 @@ Installation
 --------------------------
 ### Install medtronic dependencies
 
-#### Download ORCA
+#### Disable ORCA:
 1. Go to dropbox to download ORCA: SummitRegWithoutORCA.reg
 https://www.dropbox.com/home/Borton%20lab/Medtronic%20Brown%20Collaboration%20-%20SMI/SummitRDK_1_6_0
 1. Double click the file to add the changes to the registry
