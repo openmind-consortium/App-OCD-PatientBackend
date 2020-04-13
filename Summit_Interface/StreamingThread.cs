@@ -26,7 +26,7 @@ using Newtonsoft.Json.Schema;
 namespace Summit_Interface
 {
     //enum of the different tasks for the threads
-    public enum ThreadType { sense, stim, dataSave, myRCpS };
+    public enum ThreadType { sense, dataSave, myRCpS };
 
     //Structure holding all the things we want to pass between threads (Make sure all of these are thread safe!)
     public struct ThreadResources
@@ -95,9 +95,6 @@ namespace Summit_Interface
 
                 case ThreadType.sense:
                     m_thread = new Thread(new ParameterizedThreadStart(SendSense));
-                    break;
-                case ThreadType.stim:
-                    m_thread = new Thread(new ParameterizedThreadStart(GetStim));
                     break;
                 case ThreadType.dataSave:
                     m_thread = new Thread(new ParameterizedThreadStart(SaveData));
@@ -179,150 +176,6 @@ namespace Summit_Interface
                     }
                 }
             }
-        }
-
-
-        //Code for the the thread getting decoded stim class from Open-Ephys and sending stim info to the INS
-        private void GetStim(object input)
-        {
-            //cast to get the shared resources
-            ThreadResources resources = (ThreadResources)input;
-
-            using (SubscriberSocket stimSocket = new SubscriberSocket())
-            {
-                stimSocket.Bind("tcp://localhost:12345");
-                stimSocket.Subscribe("");
-
-                //initialize variables for summit functions
-                APIReturnInfo bufferInfo = new APIReturnInfo();
-                double? outBufferDouble;
-                int? outBuffer;
-
-                //turn on therapy
-                APIReturnInfo returnInfoBuffer;
-                returnInfoBuffer = resources.summitWrapper.summit.StimChangeTherapyOn();
-                Thread.Sleep(500);
-                double currentStimAmpFlex = 0;
-                double currentStimAmpExt = 0;
-                double flexAmp = 0.5;
-                double ExtAmp = 0.5;
-
-                if (bufferInfo.RejectCodeType == typeof(MasterRejectCode)
-                           && (MasterRejectCode)bufferInfo.RejectCode == MasterRejectCode.ChangeTherapyPor)
-                {
-                    Console.WriteLine("POR set, resetting...");
-                    returnInfoBuffer = SummitUtils.resetPOR(resources.summitWrapper.summit);
-                    returnInfoBuffer = resources.summitWrapper.summit.StimChangeTherapyOn();
-                }
-
-                if (returnInfoBuffer.RejectCode != 0)
-                {
-                    Console.WriteLine("Error during stim init, may not function properly. Error descriptor:" + returnInfoBuffer.Descriptor);
-                }
-
-                //wait for data from Open-Ephys
-                int stimClass = -2;
-                string gotMessage;
-
-                while (true)
-                {
-                    if (m_stopped == true) { Thread.Sleep(500); break; }
-
-                    //listening for messages is blocking for 1000 ms, after which it will check if it should exit thread, and if not, listen again (have this so that this thread isn't infinitely blocking when trying to join)
-                    stimSocket.TryReceiveFrameString(TimeSpan.FromMilliseconds(1000), out gotMessage);
-
-                    if (gotMessage == null) //not actual message received, just the timeout being hit
-                    {
-                        continue;
-                    }
-
-                    //log time the message was received to timing file
-                    string timestamp = DateTime.Now.Ticks.ToString();
-                    resources.timingLogFile.WriteLine("2 " + timestamp);
-
-                    //announce that an openEphys packet was requested
-                    Console.WriteLine("Stim packet received, time Event Called:" + DateTime.Now.Ticks.ToString());
-
-                    if (ExtAmp > 0.5)
-                    {
-                        Console.WriteLine("!Warning! ext amp is: " + ExtAmp.ToString());
-                    }
-                    if (flexAmp > 0.5)
-                    {
-                        Console.WriteLine("!Warning! flex amp is: " + flexAmp.ToString());
-                    }
-
-                    switch (gotMessage)
-                    {
-                        case "0":
-                            // no gait event, turn off stimulation
-                            stimClass = 0;
-                            Console.WriteLine("0");
-
-                            if (currentStimAmpFlex != 0)
-                            {
-                                bufferInfo = resources.summitWrapper.summit.StimChangeStepAmp(0, -1 * currentStimAmpFlex, out outBufferDouble);
-                                currentStimAmpFlex = 0;
-                                if (outBufferDouble == null)
-                                {
-                                    Console.WriteLine("Error in turning off flexor electrodes! " + bufferInfo.Descriptor);
-                                }
-                            }
-
-                            if (currentStimAmpExt != 0)
-                            {
-                                bufferInfo = resources.summitWrapper.summit.StimChangeStepAmp(1, -1 * currentStimAmpExt, out outBufferDouble);
-                                currentStimAmpExt = 0;
-                                if (returnInfoBuffer.RejectCode != 0)
-                                {
-                                    Console.WriteLine("Error in turning off extensor electrodes! " + bufferInfo.Descriptor);
-                                }
-                            }
-                            break;
-
-                        case "1":
-                            stimClass = 1;
-                            Console.WriteLine("1");
-                            //transition to stance, flexor stim
-                            if (currentStimAmpFlex == 0)
-                            {
-                                returnInfoBuffer = resources.summitWrapper.summit.StimChangeStepAmp(0, flexAmp, out outBufferDouble);
-                                currentStimAmpFlex += flexAmp;
-                            }
-
-                            if (returnInfoBuffer.RejectCode != 0)
-                            {
-                                Console.WriteLine("Error in turning on flexor electrodes!" + returnInfoBuffer.Descriptor);
-                            }
-                            break;
-                            
-                        case "2":
-                            stimClass = 2;
-                            Console.WriteLine("2");
-                            // transition to swing, extensor stim
-
-                            if (currentStimAmpExt == 0)
-                            {
-                                returnInfoBuffer = resources.summitWrapper.summit.StimChangeStepAmp(1, ExtAmp, out outBufferDouble);
-                                currentStimAmpExt += ExtAmp;
-                            }
-                            if (returnInfoBuffer.RejectCode != 0)
-                            {
-                                Console.WriteLine("Error in turning on extensor electrodes!" + returnInfoBuffer.Descriptor);
-                            }
-                            break;
-
-                        default:
-                            Console.WriteLine("!Error, got message: " + gotMessage);
-                            break;
-
-                    }
-
-                    //save stim info to buffer
-                    resources.savingBuffer.setStim(stimClass);
-                }
-            }
-
         }
 
         //Code for the the thread saving data to disk
@@ -624,100 +477,9 @@ namespace Summit_Interface
                                     }
                                     break;
 
-                                case "stim_on":
-                                    if (!testing)
-                                    {
-                                        //turn stim on
-                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.StimChangeTherapyOn();
-
-                                        //send result of command back
-                                        if (commandInfo.RejectCode == 0)
-                                        {
-                                            returnMsg.payload.success = true;
-                                        }
-                                        else
-                                        {
-                                            parseError(commandInfo, 0, ref returnMsg);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
-                                        {
-                                            continue;
-                                        }
-                                    }
-                                    break;
-
-                                case "stim_off":
-                                    if (!testing)
-                                    {
-                                        //turn stim on
-                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.StimChangeTherapyOff(receivedMsg.payload.use_ramp);
-
-                                        //send result of command back
-                                        if (commandInfo.RejectCode == 0)
-                                        {
-                                            returnMsg.payload.success = true;
-                                        }
-                                        else
-                                        {
-                                            parseError(commandInfo, 0, ref returnMsg);
-                                        }
-
-                                    }
-                                    else
-                                    {
-                                        //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
-                                        {
-                                            continue;
-                                        }
-                                    }
-                                    break;
-
                                 case "quit":
                                     //tell main program to quit
                                     resources.endProgram.end = true;
-                                    break;
-
-                                case "stim_change":
-                                    if (!testing)
-                                    {
-                                        //do the stim change
-                                        int parseErrorCode;
-                                        double? newValue;
-
-                                        APIReturnInfo commandInfo = SummitUtils.ChangeStimParameter(resources.summitWrapper.summit,
-                                            receivedMsg.payload.stim_group, receivedMsg.payload.stim_program, receivedMsg.payload.stim_parameter,
-                                            receivedMsg.payload.stim_value, true, out parseErrorCode, out newValue);
-
-                                        //log to events
-
-
-                                        //send result of command back
-                                        if (commandInfo.RejectCode == 0 && parseErrorCode == 0)
-                                        {
-                                            returnMsg.payload.success = true;
-                                            returnMsg.payload.new_value = (double)newValue;
-                                        }
-                                        else
-                                        {
-                                            parseError(commandInfo, parseErrorCode, ref returnMsg);
-                                            returnMsg.payload.new_value = 0;
-                                        }
-
-
-                                    }
-                                    else
-                                    {
-                                        //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
-                                        {
-                                            continue;
-                                        }
-                                    }
                                     break;
 
                             }
@@ -871,13 +633,6 @@ namespace Summit_Interface
                         errorParsed = true;
                         break;
 
-                    case 8212:
-                    case 8213:
-                        //battery too low to turn stim on
-                        msg.payload.error_code = 8;
-                        msg.payload.error_message = "Battery too low for stim";
-                        errorParsed = true;
-                        break;
                 }
             }
 
@@ -1006,8 +761,6 @@ namespace Summit_Interface
 
                     case "sense_on":
                     case "sense_off":
-                    case "stim_on":
-                    case "stim_off":
                     case "reconnect":
                         //for turning stim/sense on/off or reconnecting, randomly send back either success or some error
                         int randInt = random.Next(3);
@@ -1028,33 +781,7 @@ namespace Summit_Interface
                             returnMsg.payload.error_message = "INS Disconnected";
                         }
                         break;
-                    case "stim_change":
-                        //for turning stim/sense on/off or reconnecting, randomly send back either success or some error
-                        randInt = random.Next(3);
-                        if (randInt == 0)
-                        {
-                            returnMsg.payload.success = true;
-                        }
-                        else if (randInt == 1)
-                        {
-                            returnMsg.payload.success = false;
-                            returnMsg.payload.error_code = 1;
-                            returnMsg.payload.error_message = "Insufficient Battery";
-                        }
-                        else if (randInt == 2)
-                        {
-                            returnMsg.payload.success = false;
-                            returnMsg.payload.error_code = 2;
-                            returnMsg.payload.error_message = "INS Disconnected";
-                        }
-
-                        //if it is stim_change, also send back a new value (random value between 0 and 100)
-                        if (responseType == "stim_change")
-                        {
-                            returnMsg.payload.new_value = (ushort)random.Next(0, 101);
-                        }
-
-                        break;
+                    
 
                 }
                 
@@ -1101,11 +828,6 @@ namespace Summit_Interface
                 public bool stim_on { get; set; }
                 public SenseInfo sense_config { get; set; }
                 public StimInfo stim_config { get; set; }
-                public string stim_parameter { get; set; }
-                public UInt16 stim_group { get; set; }
-                public UInt16 stim_program { get; set; }
-                public double stim_value { get; set; }
-                public bool use_ramp { get; set; }
 
 
                 public Payload()
@@ -1115,14 +837,9 @@ namespace Summit_Interface
                     error_message = "";
                     battery_level = 0;
                     sense_on = true;
-                    stim_on = true;
+                    stim_on = false;
                     sense_config = new SenseInfo();
                     stim_config = new StimInfo();
-                    stim_parameter = "";
-                    stim_group = 0;
-                    stim_program = 0;
-                    stim_value = 0;
-                    use_ramp = true;
                 }
                 
                 public class SenseInfo

@@ -62,15 +62,15 @@
     </Reference>
     <Reference Include="Medtronic.NeuroStim.Olympus, Version=1.0.5.0, Culture=neutral, PublicKeyToken=b0f605ed92483dd3, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\Medtronic.NeuroStim.Olympus.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\Medtronic.NeuroStim.Olympus.dll</HintPath>
     </Reference>
     <Reference Include="Medtronic.SummitAPI, Version=1.6.0.0, Culture=neutral, PublicKeyToken=b0f605ed92483dd3, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\Medtronic.SummitAPI.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\Medtronic.SummitAPI.dll</HintPath>
     </Reference>
     <Reference Include="Medtronic.TelemetryM, Version=1.12.0.0, Culture=neutral, PublicKeyToken=b0f605ed92483dd3, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\Medtronic.TelemetryM.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\Medtronic.TelemetryM.dll</HintPath>
     </Reference>
     <Reference Include="NetMQ, Version=4.0.0.207, Culture=neutral, PublicKeyToken=a6decef4ddc58b3a, processorArchitecture=MSIL">
       <HintPath>..\packages\NetMQ.4.0.0.207\lib\net40\NetMQ.dll</HintPath>
@@ -83,7 +83,7 @@
     </Reference>
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\NLog.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\NLog.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -96,22 +96,21 @@
     <Reference Include="System.Xml" />
     <Reference Include="wclBluetoothFramework, Version=7.6.8.0, Culture=neutral, PublicKeyToken=31ded9088a20b7e8, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\wclBluetoothFramework.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\wclBluetoothFramework.dll</HintPath>
     </Reference>
     <Reference Include="wclCommon, Version=7.5.10.0, Culture=neutral, PublicKeyToken=82c86b86abd59210, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\wclCommon.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\wclCommon.dll</HintPath>
     </Reference>
     <Reference Include="wclCommunication, Version=7.4.3.0, Culture=neutral, PublicKeyToken=959749996648afb6, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\wclCommunication.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files\Dropbox (Brown)\Borton lab\Medtronic Brown Collaboration - SMI\SummitRDK_1_6_0\DLLs\AnyCPU\wclCommunication.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncSummit.cs" />
     <Compile Include="INSBuffer.cs" />
     <Compile Include="INSParameters.cs" />
-    <Compile Include="StimSweeper.cs" />
     <Compile Include="StreamingThread.cs" />
     <Compile Include="SummitProgram.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
