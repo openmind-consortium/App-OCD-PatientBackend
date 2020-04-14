@@ -3,15 +3,12 @@
     "Version": "v.03",
 
     "StreamToOpenEphys": false,
-    "RLPStimSetup":  true,
     "comment_Electrode_channels": "Electrodes 0-3 are spinal leads of the top bore, 4-7 are cortical leads of top bore, 8-11 are spinal leads of bottom bore, 12-15 are cortical leads of bottom bore. 16 will be used as floating/case. Anode/cathode pairs for both stim and sense must be on same bore!",
 
     "NotifyCTMPacketsReceived": false,
     "NotifyOpenEphysPacketsReceived": false,
     "RunImpedanceTest": false,
     "QuitButton": "q",
-	"StimStatusButton": "s",
-	"StimConfigButton": "g",
 	"HideConsole": false,
 	"NoDeviceTesting": false,
 	"TelemetryMode": 4,

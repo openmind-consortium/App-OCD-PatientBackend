@@ -387,18 +387,15 @@ namespace Summit_Interface
             bool FFTEnabled = parameters.GetParam("Sense.FFT.Enabled", typeof(bool));
             SenseTimeDomainChannel FFTChannel = new SenseTimeDomainChannel();
 
-            if (FFTEnabled)
-            {
-                theStates = theStates | SenseStates.Fft;
+            theStates = theStates | SenseStates.Fft;
 
-                //set up configuration
-                FftConfiguration FFTConfig;
-                SummitUtils.ConfigureFFT(parameters, out FFTConfig, out FFTChannel);
+            //set up configuration
+            FftConfiguration FFTConfig;
+            SummitUtils.ConfigureFFT(parameters, out FFTConfig, out FFTChannel);
 
-                //send FFT config to INS
-                returnInfoBuffer = m_summit.WriteSensingFftSettings(FFTConfig);
-                Console.WriteLine("Write FFT Config Status: " + returnInfoBuffer.Descriptor);
-            }
+            //send FFT config to INS
+            returnInfoBuffer = m_summit.WriteSensingFftSettings(FFTConfig);
+            Console.WriteLine("Write FFT Config Status: " + returnInfoBuffer.Descriptor);
 
 
             // Set up power channels 
@@ -409,14 +406,11 @@ namespace Summit_Interface
             BandEnables theBandEnables;
             SummitUtils.ConfigurePower(parameters, indexInJSON, out powerChannels, out theBandEnables, out powerEnabled);
 
-            if (powerEnabled)
-            {
-                theStates = theStates | SenseStates.Power;
+            theStates = theStates | SenseStates.Power;
 
-                //send configurations to INS
-                returnInfoBuffer = m_summit.WriteSensingPowerChannels(theBandEnables, powerChannels);
-                Console.WriteLine("Write Power Config Status: " + returnInfoBuffer.Descriptor);
-            }
+            //send configurations to INS
+            returnInfoBuffer = m_summit.WriteSensingPowerChannels(theBandEnables, powerChannels);
+            Console.WriteLine("Write Power Config Status: " + returnInfoBuffer.Descriptor);
 
 
             // Set up miscellaneous settings

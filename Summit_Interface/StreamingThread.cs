@@ -270,9 +270,9 @@ namespace Summit_Interface
 
                 //load in the JSON schema for the messages
                 string schemaFileName;
-                if (File.Exists("../../../../JSONFiles/OCD_Schema.json"))
+                if (File.Exists("C:/JSONFiles/OCD_Schema.json"))
                 {
-                    schemaFileName = "../../../../JSONFiles/OCD_Schema.json";
+                    schemaFileName = "C:/JSONFiles/OCD_Schema.json";
                 }
                 else
                 {
