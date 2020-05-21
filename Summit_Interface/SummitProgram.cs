@@ -723,7 +723,7 @@ namespace Summit_Interface
             m_dataSavingBuffer.addData(chanData, TdSenseEvent.Header.DataTypeSequence, (double)TdSenseEvent.Header.SystemTick, 0);
 
             // Log some inforamtion about the received packet out to file
-            m_summit.LogCustomEvent(TdSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", TdSenseEvent.Header.GlobalSequence.ToString());
+            //m_summit.LogCustomEvent(TdSenseEvent.GenerationTimeEstimate, DateTime.Now, "TdPacketReceived", TdSenseEvent.Header.GlobalSequence.ToString());
         }
 
 
