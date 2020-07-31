@@ -921,6 +921,32 @@
                 }
               }
             }
+          },
+		  
+		  {
+            "if": {
+              "properties": { "message": { "const": "sense_on" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "For stim off posts, use this payload structure",
+                  "type": "object",
+                  "properties": {
+
+                    "run_imped_test": {
+                      "description": "whether to do an impedance test on used electrodes or not",
+                      "type": "boolean"
+                    }
+
+                  },
+                  "required": [ "run_imped_test" ]
+
+                }
+              }
+            }
           }
 
         ],
