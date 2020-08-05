@@ -427,8 +427,16 @@ namespace Summit_Interface
                                 case "sense_on":
                                     if (!testing)
                                     {
+                                        //see if we want to do an impedance test or not
+                                        bool runImped = receivedMsg.payload.run_imped_test;
+                                        APIReturnInfo commandInfo;
+                                        if (runImped)
+                                        {
+                                            commandInfo = SummitUtils.fastImpedanceTest(resources.summitWrapper.summit, resources.enableTimeSync);
+                                        }
+
                                         //turn sensing on
-                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.WriteSensingState(SenseStates.LfpSense | SenseStates.Fft | SenseStates.Power, 0x00);
+                                        commandInfo = resources.summitWrapper.summit.WriteSensingState(SenseStates.LfpSense | SenseStates.Fft | SenseStates.Power, 0x00);
                                         commandInfo = resources.summitWrapper.summit.WriteSensingEnableStreams(true, true, true, false, false, true, resources.enableTimeSync, false);
 
                                         //send result of command back
@@ -824,6 +832,7 @@ namespace Summit_Interface
                 public string error_message { get; set; }
                 public double new_value { get; set; }
                 public UInt16 battery_level { get; set; }
+                public bool run_imped_test { get; set; }
                 public bool sense_on { get; set; }
                 public bool stim_on { get; set; }
                 public SenseInfo sense_config { get; set; }
@@ -836,6 +845,7 @@ namespace Summit_Interface
                     error_code = 0;
                     error_message = "";
                     battery_level = 0;
+                    run_imped_test = false;
                     sense_on = true;
                     stim_on = false;
                     sense_config = new SenseInfo();

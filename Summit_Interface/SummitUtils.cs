@@ -18,6 +18,7 @@ using Medtronic.TelemetryM;
 using Medtronic.TelemetryM.CtmProtocol.Commands;
 using Medtronic.NeuroStim.Olympus.DataTypes.Core;
 using Medtronic.NeuroStim.Olympus.DataTypes.Sensing;
+using Medtronic.NeuroStim.Olympus.DataTypes.Measurement;
 using Medtronic.NeuroStim.Olympus.Commands;
 using Medtronic.NeuroStim.Olympus.DataTypes.PowerManagement;
 using Medtronic.NeuroStim.Olympus.DataTypes.Therapy;
@@ -1695,10 +1696,212 @@ namespace Summit_Interface
         }
 
 
+        ///-------------------------------------------------------------------------------------------------
+        /// <summary>   Run impedance test across all combos of electrodes and case </summary>
+        ///
+        /// <param name="theSummit">        The summit object to talk to the INS. </param>
+        /// <param name="impedFile">        File to save impedance values to. </param>
+        /// <param name="enableTimeSync">   When turning on or off sensing, to enable time sync </param>
+        /// 
+        /// <returns>   The summit error code (which could be no error). </returns>
+        ///-------------------------------------------------------------------------------------------------
+        public static APIReturnInfo fullImpedanceTest(SummitSystem theSummit, System.IO.StreamWriter impedFile, bool enableTimeSync)
+        {
 
+            SensingState theSensingState;
+            theSummit.ReadSensingState(out theSensingState);
+            // Sensing must be turned off before a lead integrtiy test can be performed
+            if (theSensingState.State != SenseStates.None)
+            {
+                APIReturnInfo commandInfo = theSummit.WriteSensingDisableStreams(true, true, true, false, false, true, enableTimeSync, false);
+                if (commandInfo.RejectCode != 0)
+                {
+                    // Failed to turn off sensing!
+                    Console.WriteLine("Failed to turn off sensing for impedance test.");
+                    return commandInfo;
+                }
+
+            }
+
+            Console.WriteLine("Running impedance test...");
+
+            //make headers and labels
+            impedFile.Write("Impedance Testing Time: " + String.Format("{0:F}", DateTime.Now) + "\r\n");
+            impedFile.WriteLine();
+            string impedHeader = "";
+            for (int iElec = 0; iElec < 16; iElec++)
+            {
+                impedHeader += ("\tChan " + iElec);
+            }
+
+            impedFile.WriteLine(impedHeader);
+            Console.WriteLine(impedHeader);
+            APIReturnInfo testReturnInfo = new APIReturnInfo();
+
+            // Performing impedance reading across all electrodes
+            for (int iElec = 1; iElec < 17; iElec++)
+            {
+                //write row label
+                if (iElec == 16)
+                {
+                    Console.Write("Case");
+                    impedFile.Write("Case");
+                }
+                else
+                {
+                    Console.Write(String.Format("Chan {0}", iElec));
+                    impedFile.Write(String.Format("Chan {0}", iElec));
+                }
+
+                List<double> thisElecImpedances = new List<double>(); //list to save impedances to
+                List<Tuple<byte, byte>> elecPairs = new List<Tuple<byte, byte>>(); //list of pairs to try for this electrode
+
+                //just want all combinations, not permutations, also don't want to test an electrode with itself
+                for (int iElecPair = 0; iElecPair < iElec; iElecPair++)
+                {
+                    elecPairs.Add(new Tuple<byte, byte>((byte)iElec, (byte)iElecPair));
+                }
+
+                //get the impedances using summit function
+                LeadIntegrityTestResult impedanceReadings;
+                testReturnInfo = theSummit.LeadIntegrityTest(elecPairs, out impedanceReadings);
+
+                // Make sure returned structure isn't null
+                if (testReturnInfo.RejectCode == 0 && impedanceReadings != null)
+                {
+                    //store values
+                    thisElecImpedances = impedanceReadings.PairResults.Where(o => o.Info != 0).Select(o => o.Impedance).ToList();
+
+                    //write to console and file
+                    thisElecImpedances.ForEach(i => Console.Write("\t{0}", i));
+                    thisElecImpedances.ForEach(i => impedFile.Write("\t{0}", i));
+                }
+                else
+                {
+                    //write error message
+                    Console.Write("\tError reading impedance values");
+                    impedFile.Write("\tError reading impedance values");
+                    return testReturnInfo;
+                }
+
+                Console.WriteLine();
+                impedFile.WriteLine();
+            }
+
+            //finish
+            Console.WriteLine("Finished impedance test");
+            impedFile.Close();
+
+            //turn sensing back on if it was turned off
+            if (theSensingState.State != SenseStates.None)
+            {
+                APIReturnInfo commandInfo = theSummit.WriteSensingState(SenseStates.LfpSense | SenseStates.Fft | SenseStates.Power, 0x00);
+                commandInfo = theSummit.WriteSensingEnableStreams(true, true, true, false, false, true, enableTimeSync, false);
+            }
+
+
+            return testReturnInfo;
+
+        }
+
+
+        ///-------------------------------------------------------------------------------------------------
+        /// <summary>   Run impedance test across electrodes that are currently used for sensing 
+        ///             or stim. </summary>
+        ///
+        /// <param name="theSummit">        The summit object to talk to the INS. </param>
+        /// <param name="enableTimeSync">   When turning on or off sensing, to enable time sync </param>
+        /// 
+        /// <returns>   The summit error code (which could be no error). </returns>
+        ///-------------------------------------------------------------------------------------------------
+        public static APIReturnInfo fastImpedanceTest(SummitSystem theSummit, bool enableTimeSync)
+        {
+
+            // Sensing must be turned off before a lead integrtiy test can be performed
+            SensingState theSensingState;
+            theSummit.ReadSensingState(out theSensingState);
+            if (theSensingState.State != SenseStates.None)
+            {
+                APIReturnInfo commandInfo = theSummit.WriteSensingDisableStreams(true, true, true, false, false, true, enableTimeSync, false);
+                if (commandInfo.RejectCode != 0)
+                {
+                    // Failed to turn off sensing!
+                    Console.WriteLine("Failed to turn off sensing for impedance test.");
+                    return commandInfo;
+                }
+
+            }
+
+            Console.WriteLine("Running impedance test...");
+
+            //get electrode pairs
+            List<double> thisElecImpedances = new List<double>(); //list to save impedances to
+            List<Tuple<byte, byte>> elecPairs = new List<Tuple<byte, byte>>(); //list of pairs to try for this electrode
+            StreamingThread.MyRCSMsg.Payload deviceInfo;
+            int parseErrorCode;
+            APIReturnInfo testReturnInfo = QueryDeviceStatus(theSummit, out deviceInfo, out parseErrorCode);
+
+            //add stim pairs
+            int nStimGroups = deviceInfo.stim_config.anodes.Count();
+            for (int iGroup = 0; iGroup < nStimGroups; iGroup++)
+            {
+
+                int nStimPairs = deviceInfo.stim_config.anodes[iGroup].Count();
+
+                for (int iPair = 0; iPair < nStimPairs; iPair++)
+                {
+                    elecPairs.Add(new Tuple<byte, byte>((byte)deviceInfo.stim_config.anodes[iGroup][iPair], (byte)deviceInfo.stim_config.cathodes[iGroup][iPair]));
+                }
+
+            }
+
+            //add sense pairs
+            int nSensePairs = deviceInfo.sense_config.anodes.Count();
+            for (int iPair = 0; iPair < nSensePairs; iPair++)
+            {
+                elecPairs.Add(new Tuple<byte, byte>((byte)deviceInfo.sense_config.anodes[iPair], (byte)deviceInfo.sense_config.cathodes[iPair]));
+            }
+
+            //now divide pairs into two groups if there's more than 16
+            List<List<Tuple<byte, byte>>> parsedElecPairs = new List<List<Tuple<byte, byte>>>();
+            if (elecPairs.Count() > 16)
+            {
+                //do first 16 pairs
+                parsedElecPairs.Add(elecPairs.GetRange(0, 16));
+
+                //then do the rest
+                int nRemainingPairs = elecPairs.Count() - 16;
+                parsedElecPairs.Add(elecPairs.GetRange(16, nRemainingPairs));
+            }
+            else
+            {
+                parsedElecPairs.Add(elecPairs);
+            }
+
+            //get the impedances using summit function
+            LeadIntegrityTestResult impedanceReadings;
+            for (int iCall = 0; iCall < parsedElecPairs.Count(); iCall++)
+            {
+                testReturnInfo = theSummit.LeadIntegrityTest(parsedElecPairs[iCall], out impedanceReadings);
+            }
+
+            //turn sensing back on if it was turned off
+            if (theSensingState.State != SenseStates.None)
+            {
+                APIReturnInfo commandInfo = theSummit.WriteSensingState(SenseStates.LfpSense | SenseStates.Fft | SenseStates.Power, 0x00);
+                commandInfo = theSummit.WriteSensingEnableStreams(true, true, true, false, false, true, enableTimeSync, false);
+            }
+
+
+            //finish
+            Console.WriteLine("Finished impedance test");
+            return testReturnInfo;
+
+        }
+        
         //
 
 
-    }
+        }
 
 }

@@ -159,8 +159,9 @@ namespace Summit_Interface
             SummitManager theSummitManager = new SummitManager("OCD-Sense-Session");
 
             // setup thread-safe shared resources
-            bool doSensing = parameters.GetParam("Sense.Enabled", typeof(bool));
-            TdSampleRates samplingRate = TdSampleRates.Disabled; //default disabled, if we are sensing, we'll set the sampling rate below
+            //bool doSensing = parameters.GetParam("Sense.Enabled", typeof(bool)); *****removed sensing on startup option
+            int paramSamplingRate = parameters.GetParam("Sense.SamplingRate", typeof(int));
+            TdSampleRates samplingRate = (TdSampleRates)Enum.Parse(typeof(TdSampleRates), "Sample" + paramSamplingRate.ToString("0000") + "Hz");
             bool noDeviceTesting = parameters.GetParam("NoDeviceTesting", typeof(bool));
             m_exitProgram = new endProgramWrapper();
 
@@ -170,7 +171,7 @@ namespace Summit_Interface
             sharedResources.summitWrapper = m_summitWrapper;
             sharedResources.summitManager = theSummitManager;
             sharedResources.saveDataFileName = m_dataFileName;
-            sharedResources.samplingRate = doSensing ? samplingRate : TdSampleRates.Disabled;
+            sharedResources.samplingRate = samplingRate;
             sharedResources.timingLogFile = m_timingLogFile;
             sharedResources.parameters = parameters;
             sharedResources.testMyRCPS = noDeviceTesting;
@@ -257,91 +258,6 @@ namespace Summit_Interface
             }
             testingFile.Close();
             */
-
-            //run impedance test
-            if (parameters.GetParam("RunImpedanceTest", typeof(bool)))
-            {
-                // Sensing must be turned off before a lead integrtiy test can be performed
-                APIReturnInfo sensingOffStatus = m_summit.WriteSensingState(SenseStates.None, 0);
-                Console.WriteLine("Running impedance test...");
-                if (sensingOffStatus.RejectCode != 0)
-                {
-                    // Failed to turn off sensing!
-                    Console.WriteLine("Failed to turn off sensing. Press a key to exit.");
-                    Console.ReadKey();
-
-                    // Dispose Summit
-                    theSummitManager.Dispose();
-
-                    // Exit
-                    return;
-                }
-
-                //make headers and labels
-                m_impedanceFile.Write("Impedance Testing Time: " + String.Format("{0:F}", DateTime.Now) + "\r\n");
-                m_impedanceFile.WriteLine();
-                string impedHeader = "";
-                for (int iElec = 0; iElec < 16; iElec++)
-                {
-                    impedHeader += ("\tChan " + iElec);
-                }
-
-                m_impedanceFile.WriteLine(impedHeader);
-                Console.WriteLine(impedHeader);
-
-                // Performing impedance reading across all electrodes
-                for (int iElec = 1; iElec < 17; iElec++)
-                {
-                    //write row label
-                    if (iElec == 16)
-                    {
-                        Console.Write("Case");
-                        m_impedanceFile.Write("Case");
-                    }
-                    else
-                    {
-                        Console.Write(String.Format("Chan {0}", iElec));
-                        m_impedanceFile.Write(String.Format("Chan {0}", iElec));
-                    }
-
-                    List<double> thisElecImpedances = new List<double>(); //list to save impedances to
-                    List<Tuple<byte, byte>> elecPairs = new List<Tuple<byte, byte>>(); //list of pairs to try for this electrode
-
-                    //just want all combinations, not permutations, also don't want to test an electrode with itself
-                    for (int iElecPair = 0; iElecPair < iElec; iElecPair++)
-                    {
-                        elecPairs.Add(new Tuple<byte, byte>((byte)iElec, (byte)iElecPair));
-                    }
-
-                    //get the impedances using summit function
-                    LeadIntegrityTestResult impedanceReadings;
-                    APIReturnInfo testReturnInfo = m_summit.LeadIntegrityTest(elecPairs, out impedanceReadings);
-
-                    // Make sure returned structure isn't null
-                    if (testReturnInfo.RejectCode == 0 && impedanceReadings != null)
-                    {
-                        //store values
-                        thisElecImpedances = impedanceReadings.PairResults.Where(o => o.Info != 0).Select(o => o.Impedance).ToList();
-
-                        //write to console and file
-                        thisElecImpedances.ForEach(i => Console.Write("\t{0}", i));
-                        thisElecImpedances.ForEach(i => m_impedanceFile.Write("\t{0}", i));
-                    }
-                    else
-                    {
-                        //write error message
-                        Console.Write("\tError reading impedance values");
-                        m_impedanceFile.Write("\tError reading impedance values");
-                    }
-
-                    Console.WriteLine();
-                    m_impedanceFile.WriteLine();
-                }
-
-                //finish
-                Console.WriteLine("Finished impedance test");
-                m_impedanceFile.Close();
-            }
 
 
             //if time-synching is enabled, do latency test
@@ -457,19 +373,12 @@ namespace Summit_Interface
             notifyCTM = parameters.GetParam("NotifyCTMPacketsReceived", typeof(bool));
             interp = parameters.GetParam("Sense.InterpolateMissingPackets", typeof(bool));
 
-            //turn on actual sensing
-            if (doSensing)
-            {
-                returnInfoBuffer = m_summit.WriteSensingEnableStreams(true, FFTEnabled, powerEnabled, false, false, true, enableTimeSync, false);
-
-            }
-
             ////Initialize closed-loop threads===============================================
 
             bool streamToOpenEphys = parameters.GetParam("StreamToOpenEphys", typeof(bool));
 
             // have to have sensing set up to do streaming to Open-Ephys! Throw error if no sensing
-            if (streamToOpenEphys && !doSensing)
+            if (streamToOpenEphys)
             {
                 throw new Exception("Need to enable sensing if you want to stream to Open Ephys!");
             }
@@ -530,14 +439,11 @@ namespace Summit_Interface
             dataSaveThread.StartThread(ref sharedResources);
 
             //finally register the listeners to start getting data from the INS
-            if (doSensing)
-            {
-                m_summit.DataReceivedTDHandler += SummitTimeDomainPacketReceived;
+            m_summit.DataReceivedTDHandler += SummitTimeDomainPacketReceived;
                 //TODO: Add frequency domain streams
                 //theSummit.dataReceivedPower += theSummit_DataReceived_Power;
                 //theSummit.dataReceivedFFT += theSummit_DataReceived_FFT;
                 //theSummit.dataReceivedAccel += theSummit_DataReceived_Accel;
-            }
             m_summit.UnexpectedLinkStatusHandler += SummitLinkStatusReceived;
 
             ////Start main loop==================================================

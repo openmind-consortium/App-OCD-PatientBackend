@@ -67,7 +67,6 @@ namespace Summit_Interface
             m_allFields = new parameterField[]{
                 new parameterField("Version",                           typeof(string),     null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("StreamToOpenEphys",                 typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
-                new parameterField("RunImpedanceTest",                  typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("NotifyCTMPacketsReceived",          typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("NotifyOpenEphysPacketsReceived",    typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("QuitButton",                        typeof(string),     null,                       null,               false,  false,  null,                   null,                   null,                       null),
@@ -76,7 +75,6 @@ namespace Summit_Interface
                 new parameterField("TelemetryMode",                     typeof(long),       null,                       null,               false,  false,  null,                   new double[2]{3, 4},    null,                       null),
 
                 new parameterField("Sense",                             null,               null,                       null,               true,   false,  null,                   null,                   null,                       null),
-                new parameterField("Enabled",                           typeof(bool),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("APITimeSync",                       typeof(bool),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("SaveFileName",                      typeof(string),     "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("BufferSize",                        typeof(long),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),

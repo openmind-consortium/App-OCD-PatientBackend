@@ -28,6 +28,14 @@
         "stim_sense_friendly": true
       }
     },
+	
+	{
+      "message_type": "post",
+      "message": "sense_on",
+      "payload": {
+        "run_imped_test": true
+      }
+    },
 
     {
       "message_type": "result",
