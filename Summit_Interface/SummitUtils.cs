@@ -1402,8 +1402,28 @@ namespace Summit_Interface
             //time domain config
             string enumName;
             int nChannels = sensingConfig.TimeDomainChannels.Count();
+            int nEnabledChannels = 0;
+            List<int> disabledChannels = new List<int>();
             for (int iChan = 0; iChan <= nChannels - 1; iChan++)
             {
+                //make sure the channel is enabled
+                if (sensingConfig.TimeDomainChannels[iChan].SampleRate == TdSampleRates.Disabled)
+                {
+                    disabledChannels.Add(iChan);
+                    continue;
+                }
+
+                nEnabledChannels++;
+
+                //first get the sampling rates
+                double samplingRate;
+                enumName = sensingConfig.TimeDomainChannels[iChan].SampleRate.ToString();
+                if (!ConvertEnumsToValues(enumName, "TdSampleRates", out samplingRate))
+                {
+                    parseErrorCode = 1;
+                    return commandInfo;
+                }
+                payload.sense_config.sampling_rates.Add(Convert.ToUInt16(samplingRate));
 
                 //first, see which contacts are used for each channel
                 int boreOffset = 0;
@@ -1466,15 +1486,6 @@ namespace Summit_Interface
                 }
                 payload.sense_config.highpass_filter.Add(hpfValue);
                 
-                //then the sampling rates
-                double samplingRate;
-                enumName = sensingConfig.TimeDomainChannels[iChan].SampleRate.ToString();
-                if(!ConvertEnumsToValues(enumName, "TdSampleRates", out samplingRate))
-                {
-                    parseErrorCode = 1;
-                    return commandInfo;
-                }
-                payload.sense_config.sampling_rates.Add(Convert.ToUInt16(samplingRate));
             }
 
             //fft config
@@ -1494,16 +1505,13 @@ namespace Summit_Interface
             payload.sense_config.FFT_stream_size = sensingConfig.FftConfig.StreamSizeBins;
             payload.sense_config.FFT_stream_offset = sensingConfig.FftConfig.StreamOffsetBins;
             
-            //now get the power bands
-            if (sensingConfig.PowerChannels.Count() != nChannels)
-            {
-                //the number of power band channels must equal the number of time domain channels
-                parseErrorCode = 2;
-                return commandInfo;
-            }
-            
             for (int iChan = 0; iChan <= nChannels - 1; iChan++)
             {
+                if (disabledChannels.Contains(iChan))
+                {
+                    continue;
+                }
+
                 payload.sense_config.powerband1_lower_cutoff.Add(sensingConfig.PowerChannels[iChan].Band0Start);
                 payload.sense_config.powerband1_upper_cutoff.Add(sensingConfig.PowerChannels[iChan].Band0Stop);
                 payload.sense_config.powerband2_lower_cutoff.Add(sensingConfig.PowerChannels[iChan].Band1Start);
@@ -1822,7 +1830,8 @@ namespace Summit_Interface
             theSummit.ReadSensingState(out theSensingState);
             if (theSensingState.State != SenseStates.None)
             {
-                APIReturnInfo commandInfo = theSummit.WriteSensingDisableStreams(true, true, true, false, false, true, enableTimeSync, false);
+                APIReturnInfo commandInfo = theSummit.WriteSensingState(SenseStates.None, 0);
+                commandInfo = theSummit.WriteSensingDisableStreams(true, true, true, false, false, true, enableTimeSync, false);
                 if (commandInfo.RejectCode != 0)
                 {
                     // Failed to turn off sensing!

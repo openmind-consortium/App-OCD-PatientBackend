@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29926.136
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Summit_Interface", "Summit_Interface\Summit_Interface.csproj", "{5C83D028-1763-41E9-805F-67ECAF29C6AE}"
 EndProject
@@ -14,9 +14,13 @@ Global
 		{5C83D028-1763-41E9-805F-67ECAF29C6AE}.Debug|x64.ActiveCfg = Debug|x64
 		{5C83D028-1763-41E9-805F-67ECAF29C6AE}.Debug|x64.Build.0 = Debug|x64
 		{5C83D028-1763-41E9-805F-67ECAF29C6AE}.Debug|x64.Deploy.0 = Debug|x64
-		{5C83D028-1763-41E9-805F-67ECAF29C6AE}.Release|x64.ActiveCfg = Release|Any CPU
+		{5C83D028-1763-41E9-805F-67ECAF29C6AE}.Release|x64.ActiveCfg = Release|x64
+		{5C83D028-1763-41E9-805F-67ECAF29C6AE}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {239144F7-11E3-4EBA-8648-0EFFF0225F89}
 	EndGlobalSection
 EndGlobal

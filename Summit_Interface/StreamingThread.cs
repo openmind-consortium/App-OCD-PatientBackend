@@ -463,7 +463,8 @@ namespace Summit_Interface
                                     if (!testing)
                                     {
                                         //turn sensing off
-                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.WriteSensingDisableStreams(true, true, true, false, false, true, resources.enableTimeSync, false);
+                                        APIReturnInfo commandInfo = resources.summitWrapper.summit.WriteSensingState(SenseStates.None, 0);
+                                        commandInfo = resources.summitWrapper.summit.WriteSensingDisableStreams(true, true, true, false, false, true, resources.enableTimeSync, false);
 
                                         //send result of command back
                                         if (commandInfo.RejectCode == 0)
