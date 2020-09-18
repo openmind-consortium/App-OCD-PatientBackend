@@ -188,9 +188,10 @@ namespace Summit_Interface
             Console.WriteLine("Creating Summit Interface...");
             Thread.Sleep(5000);
             ushort mode = (ushort)parameters.GetParam("TelemetryMode", typeof(int));
+            bool disableBeeps = (bool)parameters.GetParam("DisableAllCTMBeeps", typeof(bool));
 
             // Connect to CTM and INS
-            while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper, mode))
+            while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper, mode, disableBeeps))
             {
                 // Failed to connect, keep retrying
                 //Console.WriteLine("Unable to establish connection, press 'r' to retry, or anything else to exit");

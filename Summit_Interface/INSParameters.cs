@@ -73,6 +73,7 @@ namespace Summit_Interface
                 new parameterField("HideConsole",                       typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("NoDeviceTesting",                   typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
                 new parameterField("TelemetryMode",                     typeof(long),       null,                       null,               false,  false,  null,                   new double[2]{3, 4},    null,                       null),
+                new parameterField("DisableAllCTMBeeps",                typeof(bool),       null,                       null,               false,  false,  null,                   null,                   null,                       null),
 
                 new parameterField("Sense",                             null,               null,                       null,               true,   false,  null,                   null,                   null,                       null),
                 new parameterField("APITimeSync",                       typeof(bool),       "Sense",                    null,               false,  false,  null,                   null,                   null,                       null),
