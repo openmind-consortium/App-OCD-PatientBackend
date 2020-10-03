@@ -43,7 +43,7 @@ namespace Summit_Interface
         public ThreadsafeFileStream timingLogFile { get; set; } //thread-safe file for writing debug information to
         public INSParameters parameters { get; set; } //configuration parameters read from JSON file. Is read only so is threadsafe
         public bool testMyRCPS { get; set; } //if we are running code in test mode for testing connection to MyRC+S program
-        public endProgramWrapper endProgram { get; set; } //to tell main program to quit
+        public endProgramWrapper endProgram { get; set; } //to tell main program to quit or restart
     }
 
     public class SummitSystemWrapper
@@ -67,10 +67,15 @@ namespace Summit_Interface
     public class endProgramWrapper
     {
         public bool end;
+        public bool restart;
+        //post-restart parameters
+        public bool ctmBeepDisabled;
 
         public endProgramWrapper()
         {
             end = false;
+            restart = false;
+            ctmBeepDisabled = false;
         }
     }
 
@@ -404,6 +409,9 @@ namespace Summit_Interface
                                         APIReturnInfo commandInfo = SummitUtils.QueryDeviceStatus(
                                             resources.summitWrapper.summit, out StreamingThread.MyRCSMsg.Payload payload, out int parseErrorCode);
 
+                                        //also add if CTM beep is disabled or not
+                                        payload.beeps_disabled = resources.endProgram.ctmBeepDisabled;
+
                                         if (commandInfo.RejectCode == 0 && parseErrorCode == 0)
                                         {
                                             returnMsg.payload = payload;
@@ -486,9 +494,32 @@ namespace Summit_Interface
                                     }
                                     break;
 
+                                case "beep_change":
+                                    if (!testing)
+                                    {
+                                        //change whether the CTM should beep at all or not (e.g. to not disturb patients while sleeping)
+                                        //will have to reconnect to the CTM, i.e. restart backend
+                                        resources.endProgram.end = true;
+                                        resources.endProgram.restart = true;
+                                        resources.endProgram.ctmBeepDisabled = receivedMsg.payload.disable_beeps;
+                                        
+                                        //send result of command back to let front end know message was received
+                                        returnMsg.payload.success = true;
+                                    }
+                                    else
+                                    {
+                                        //For testing, send back some pre-defined responses
+                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                        {
+                                            continue;
+                                        }
+                                    }
+                                    break;
+
                                 case "quit":
                                     //tell main program to quit
                                     resources.endProgram.end = true;
+                                    resources.endProgram.restart = false;
                                     break;
 
                             }
@@ -766,6 +797,7 @@ namespace Summit_Interface
                         returnMsg.payload.stim_config.active_recharge = new List<List<bool>>() {
                             new List<bool>() { true, true, true, true }, new List<bool>() { false, false }, new List<bool>(), new List<bool>() };
 
+                        returnMsg.payload.beeps_disabled = false;
                         break;
 
                     case "sense_on":
@@ -834,6 +866,8 @@ namespace Summit_Interface
                 public double new_value { get; set; }
                 public UInt16 battery_level { get; set; }
                 public bool run_imped_test { get; set; }
+                public bool disable_beeps { get; set; }
+                public bool beeps_disabled { get; set; }
                 public bool sense_on { get; set; }
                 public bool stim_on { get; set; }
                 public SenseInfo sense_config { get; set; }
@@ -847,6 +881,8 @@ namespace Summit_Interface
                     error_message = "";
                     battery_level = 0;
                     run_imped_test = false;
+                    disable_beeps = false;
+                    beeps_disabled = false;
                     sense_on = true;
                     stim_on = false;
                     sense_config = new SenseInfo();

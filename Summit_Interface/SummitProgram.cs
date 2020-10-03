@@ -117,387 +117,415 @@ namespace Summit_Interface
 
             ConsoleKeyInfo input = new ConsoleKeyInfo();
 
-            // set up buffers
-            int numSenseChans = parameters.GetParam("Sense.nChans", typeof(int));
-            int bufferSize = parameters.GetParam("Sense.BufferSize", typeof(int)); // Make sure this is not larger than the AudioSampleBuffer buffer that Open-Ephys uses! (1024 last time I checked)
-            m_TDBuffer = new INSBuffer(numSenseChans, bufferSize);
-            m_FFTBuffer = new INSBuffer(1, bufferSize);
-            m_BPBuffer = new INSBuffer(numSenseChans * 2, bufferSize);
-            m_dataSavingBuffer = new INSBuffer(numSenseChans, bufferSize);
-            m_summitWrapper = new SummitSystemWrapper();
+            // now set up main loop to re-initiate backend if the user wants to restart the backend (e.g. to change ctm beep settings)
+            bool closeBackend = false;
 
-            //set up files
-            m_dataFileName = parameters.GetParam("Sense.SaveFileName", typeof(string));
-            if (m_dataFileName.Length > 4)
-            {
-                if (m_dataFileName.Substring(m_dataFileName.Length - 4, 4) == ".txt")
-                {
-                    m_dataFileName = m_dataFileName.Substring(0, m_dataFileName.Length - 4);
-                }
-            }
-
-            //check if the file exists, and warn user that it will be overwritten if it does
-            List<string> dataFilesNames = new List<string> { m_dataFileName + "-Timing.txt",
-                m_dataFileName + "-Debug.txt", m_dataFileName + "-Impedance.txt" };
-
-            bool filesExists = false;
-            foreach (string filename in dataFilesNames)
-            {
-                if (File.Exists(filename))
-                {
-                    Console.WriteLine("Warning: " + filename + " already exsits, it will be overwritten!");
-                    filesExists = true;
-                }
-            }
-
-
-            m_timingLogFile = new ThreadsafeFileStream(m_dataFileName + "-Timing.txt");
-            m_debugFile = new ThreadsafeFileStream(m_dataFileName + "-Debug.txt");
-            System.IO.StreamWriter m_impedanceFile = new System.IO.StreamWriter(m_dataFileName + "-Impedance.txt");
-
-            // Create a manager
-            SummitManager theSummitManager = new SummitManager("OCD-Sense-Session");
-
-            // setup thread-safe shared resources
-            //bool doSensing = parameters.GetParam("Sense.Enabled", typeof(bool)); *****removed sensing on startup option
-            int paramSamplingRate = parameters.GetParam("Sense.SamplingRate", typeof(int));
-            TdSampleRates samplingRate = (TdSampleRates)Enum.Parse(typeof(TdSampleRates), "Sample" + paramSamplingRate.ToString("0000") + "Hz");
-            bool noDeviceTesting = parameters.GetParam("NoDeviceTesting", typeof(bool));
-            m_exitProgram = new endProgramWrapper();
-
-            ThreadResources sharedResources = new ThreadResources();
-            sharedResources.TDbuffer = m_TDBuffer;
-            sharedResources.savingBuffer = m_dataSavingBuffer;
-            sharedResources.summitWrapper = m_summitWrapper;
-            sharedResources.summitManager = theSummitManager;
-            sharedResources.saveDataFileName = m_dataFileName;
-            sharedResources.samplingRate = samplingRate;
-            sharedResources.timingLogFile = m_timingLogFile;
-            sharedResources.parameters = parameters;
-            sharedResources.testMyRCPS = noDeviceTesting;
-            sharedResources.endProgram = m_exitProgram;
-            sharedResources.enableTimeSync = parameters.GetParam("Sense.APITimeSync", typeof(bool));
-
-            //now, establish connection to MyRC+S program
-            StreamingThread myRCSThread = new StreamingThread(ThreadType.myRCpS);
-            myRCSThread.StartThread(ref sharedResources);
-
-            ////Connect to Device=========================================================++
-            // Initialize the Summit Interface
-            Console.WriteLine();
-            Console.WriteLine("Creating Summit Interface...");
-            Thread.Sleep(5000);
-            ushort mode = (ushort)parameters.GetParam("TelemetryMode", typeof(int));
+            //settings which we might want to change on restart (e.g. ctm beep enabling)
             bool disableBeeps = (bool)parameters.GetParam("DisableAllCTMBeeps", typeof(bool));
 
-            // Connect to CTM and INS
-            while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper, mode, disableBeeps))
+            m_exitProgram.ctmBeepDisabled = disableBeeps;
+
+            while (!closeBackend)
             {
-                // Failed to connect, keep retrying
-                //Console.WriteLine("Unable to establish connection, press 'r' to retry, or anything else to exit");
-                //ConsoleKeyInfo retryKey = Console.ReadKey();
+                // set up buffers
+                int numSenseChans = parameters.GetParam("Sense.nChans", typeof(int));
+                int bufferSize = parameters.GetParam("Sense.BufferSize", typeof(int)); // Make sure this is not larger than the AudioSampleBuffer buffer that Open-Ephys uses! (1024 last time I checked)
+                m_TDBuffer = new INSBuffer(numSenseChans, bufferSize);
+                m_FFTBuffer = new INSBuffer(1, bufferSize);
+                m_BPBuffer = new INSBuffer(numSenseChans * 2, bufferSize);
+                m_dataSavingBuffer = new INSBuffer(numSenseChans, bufferSize);
+                m_summitWrapper = new SummitSystemWrapper();
 
-                //if (retryKey.KeyChar.ToString() != "r")
-
-                Console.WriteLine("Unable to establish connection, retrying...");
-                if (m_exitProgram.end)
+                //set up files
+                m_dataFileName = parameters.GetParam("Sense.SaveFileName", typeof(string));
+                if (m_dataFileName.Length > 4)
                 {
-                    theSummitManager.Dispose();
-                    return;
-                }
-            }
-
-            BatteryStatusResult outputBuffer;
-            APIReturnInfo commandInfo = m_summit.ReadBatteryLevel(out outputBuffer);
-
-            TelemetryModuleInfo info;
-            m_summit.ReadTelemetryModuleInfo(out info);
-
-            Console.WriteLine();
-            Console.WriteLine(String.Format("CTM Battery Level: {0}", info.BatteryLevel));
-
-            // Ensure the command was successful before using the result
-            if (commandInfo.RejectCode == 0)
-            {
-                string batteryLevel = outputBuffer.BatteryLevelPercent.ToString();
-                Console.WriteLine("INS Battery Level: " + batteryLevel);
-            }
-            else
-            {
-                Console.WriteLine("Unable to read battery level");
-            }
-            Console.WriteLine();
-
-            /*
-            System.IO.StreamWriter testingFile = new System.IO.StreamWriter("BatteryTesting.txt");
-            string message;
-            while (true)
-            {
-                commandInfo = m_summit.StimChangeTherapyOff(false);
-                message = "Stim off \t " + commandInfo.RejectCodeType.ToString() +
-                    '\t' + commandInfo.RejectCode.ToString() + '\t' + String.Format("{0:F}", DateTime.Now);
-                testingFile.WriteLine(message);
-                Console.WriteLine(message);
-                if (commandInfo.RejectCode != 0)
-                {
-                    break;
-                }
-
-                Thread.Sleep(1000);
-
-                commandInfo = m_summit.StimChangeTherapyOn();
-                message = "Stim on \t " + commandInfo.RejectCodeType.ToString() +
-                    '\t' + commandInfo.RejectCode.ToString() + '\t' + String.Format("{0:F}", DateTime.Now);
-                testingFile.WriteLine(message);
-                Console.WriteLine(message);
-                if (commandInfo.RejectCode != 0)
-                {
-                    break;
-                }
-
-                Thread.Sleep(1000);
-            }
-            testingFile.Close();
-            */
-
-
-            //if time-synching is enabled, do latency test
-            if (parameters.GetParam("Sense.APITimeSync", typeof(bool)))
-            {
-                TimeSpan? span = null;
-                m_summit.CalculateLatency(10, out span);
-                if (span != null)
-                {
-                    Console.Write("Latency test: " + span?.ToString("c"));
-                }
-                else
-                {
-                    Console.WriteLine("Unable to perform latency test!");
-                }
-            }
-
-
-            ////Configure Sensing============================================================
-
-            Console.WriteLine();
-            Console.WriteLine("Writing sense configuration...");
-            SenseStates theStates = SenseStates.LfpSense;
-            APIReturnInfo returnInfoBuffer;
-
-            //first turn off sensing
-            m_summit.WriteSensingState(SenseStates.None, 0x00);
-
-            //set up time domain channels configurations
-            List<TimeDomainChannel> timeDomainChannels;
-            List<int?> indexInJSON;
-            SummitUtils.ConfigureTimeDomain(parameters, out indexInJSON, out timeDomainChannels, ref samplingRate);
-            m_samplingRate = samplingRate;
-
-            //send time domain config to INS
-            returnInfoBuffer = m_summit.WriteSensingTimeDomainChannels(timeDomainChannels);
-            SensingConfiguration senseInfo;
-            returnInfoBuffer = m_summit.ReadSensingSettings(out senseInfo);
-            Console.WriteLine("Write TD Config Status: " + returnInfoBuffer.Descriptor);
-
-
-            // Set up the FFT
-            bool FFTEnabled = parameters.GetParam("Sense.FFT.Enabled", typeof(bool));
-            SenseTimeDomainChannel FFTChannel = new SenseTimeDomainChannel();
-
-            theStates = theStates | SenseStates.Fft;
-
-            //set up configuration
-            FftConfiguration FFTConfig;
-            SummitUtils.ConfigureFFT(parameters, out FFTConfig, out FFTChannel);
-
-            //send FFT config to INS
-            returnInfoBuffer = m_summit.WriteSensingFftSettings(FFTConfig);
-            Console.WriteLine("Write FFT Config Status: " + returnInfoBuffer.Descriptor);
-
-
-            // Set up power channels 
-            bool powerEnabled;
-
-            //make power channel configurations
-            List<PowerChannel> powerChannels;
-            BandEnables theBandEnables;
-            SummitUtils.ConfigurePower(parameters, indexInJSON, out powerChannels, out theBandEnables, out powerEnabled);
-
-            theStates = theStates | SenseStates.Power;
-
-            //send configurations to INS
-            returnInfoBuffer = m_summit.WriteSensingPowerChannels(theBandEnables, powerChannels);
-            Console.WriteLine("Write Power Config Status: " + returnInfoBuffer.Descriptor);
-
-
-            // Set up miscellaneous settings
-            MiscellaneousSensing miscsettings = new MiscellaneousSensing();
-
-            //first, streaming frame period
-            int paramFrameSize = parameters.GetParam("Sense.PacketPeriod", typeof(int));
-            StreamingFrameRate streamingRate;
-            try
-            {
-                streamingRate = (StreamingFrameRate)Enum.Parse(typeof(StreamingFrameRate), "Frame" + paramFrameSize + "ms");
-            }
-            catch
-            {
-                throw new Exception(String.Format("Packet frame size: {0}, isn't a valid selection, check JSON file specifications!",
-                    paramFrameSize));
-            }
-            miscsettings.StreamingRate = streamingRate;
-
-            //for now, disable loop recording
-            miscsettings.LrTriggers = LoopRecordingTriggers.None;
-
-
-            // Write misc and accelerometer configurations to INS
-            returnInfoBuffer = m_summit.WriteSensingMiscSettings(miscsettings);
-            Console.WriteLine("Write Misc Config Status: " + returnInfoBuffer.Descriptor);
-            returnInfoBuffer = m_summit.WriteSensingAccelSettings(AccelSampleRate.Sample32);
-            Console.WriteLine("Write Accel Config Status: " + returnInfoBuffer.Descriptor);
-
-
-            // turn on sensing components
-            m_summit.WriteSensingState(theStates, FFTEnabled ? FFTChannel : 0x00);
-            Console.WriteLine("Write Sensing Config Status: " + returnInfoBuffer.Descriptor);
-
-            // Start streaming for time domain, FFT, power, accelerometer, and time-synchronization.
-            // Leave streaming of detector events, adaptive stim, and markers disabled
-            bool enableTimeSync = parameters.GetParam("Sense.APITimeSync", typeof(bool));
-
-
-            //initialize streaming threads variables
-            m_nTDChans = parameters.GetParam("Sense.nChans", typeof(int));
-            m_prevLastValues = new double[m_nTDChans];
-
-            notifyCTM = parameters.GetParam("NotifyCTMPacketsReceived", typeof(bool));
-            interp = parameters.GetParam("Sense.InterpolateMissingPackets", typeof(bool));
-
-            ////Initialize closed-loop threads===============================================
-
-            bool streamToOpenEphys = parameters.GetParam("StreamToOpenEphys", typeof(bool));
-
-            // have to have sensing set up to do streaming to Open-Ephys! Throw error if no sensing
-            if (streamToOpenEphys)
-            {
-                throw new Exception("Need to enable sensing if you want to stream to Open Ephys!");
-            }
-
-            // streaming to Open Ephys, set up connection
-            StreamingThread sendSenseThread = null;
-
-            if (streamToOpenEphys)
-            {
-                Console.WriteLine();
-                //first, perform hand-shake
-
-                //Message structure on handshake:
-                //
-                //int number of channels
-                //int buffer size
-                //
-                Console.WriteLine("Attempting to connect to Open-Ephys...");
-
-                int zmqPort = parameters.GetParam("Sense.ZMQPort", typeof(int));
-                using (ResponseSocket senseSocket = new ResponseSocket())
-                {
-                    senseSocket.Bind("tcp://*:" + zmqPort);
-                    string inMessage;
-                    byte[] outMessage;
-
-                    inMessage = senseSocket.ReceiveFrameString();
-
-                    if (inMessage == "InitTD")
+                    if (m_dataFileName.Substring(m_dataFileName.Length - 4, 4) == ".txt")
                     {
-                        outMessage = BitConverter.GetBytes(m_TDBuffer.getNumChans());
-                        outMessage = m_TDBuffer.Concatenate(outMessage, BitConverter.GetBytes(m_TDBuffer.getBufferSize()));
-                        senseSocket.SendFrame(outMessage);
-                        Console.WriteLine("Connection with Open-Ephys Established");
+                        m_dataFileName = m_dataFileName.Substring(0, m_dataFileName.Length - 4);
                     }
-                    else
+                }
+
+                //check if the file exists, and warn user that it will be overwritten if it does
+                List<string> dataFilesNames = new List<string> { m_dataFileName + "-Timing.txt",
+                m_dataFileName + "-Debug.txt", m_dataFileName + "-Impedance.txt" };
+
+                bool filesExists = false;
+                foreach (string filename in dataFilesNames)
+                {
+                    if (File.Exists(filename))
                     {
-                        Console.WriteLine("Handshake with Open-Ephys failed!");
-                        Console.WriteLine("Press any key to quit");
-                        Console.ReadKey();
+                        Console.WriteLine("Warning: " + filename + " already exsits, it will be overwritten!");
+                        filesExists = true;
+                    }
+                }
+
+
+                m_timingLogFile = new ThreadsafeFileStream(m_dataFileName + "-Timing.txt");
+                m_debugFile = new ThreadsafeFileStream(m_dataFileName + "-Debug.txt");
+                System.IO.StreamWriter m_impedanceFile = new System.IO.StreamWriter(m_dataFileName + "-Impedance.txt");
+
+                // Create a manager
+                SummitManager theSummitManager = new SummitManager("OCD-Sense-Session");
+
+                // setup thread-safe shared resources
+                //bool doSensing = parameters.GetParam("Sense.Enabled", typeof(bool)); *****removed sensing on startup option
+                int paramSamplingRate = parameters.GetParam("Sense.SamplingRate", typeof(int));
+                TdSampleRates samplingRate = (TdSampleRates)Enum.Parse(typeof(TdSampleRates), "Sample" + paramSamplingRate.ToString("0000") + "Hz");
+                bool noDeviceTesting = parameters.GetParam("NoDeviceTesting", typeof(bool));
+                m_exitProgram = new endProgramWrapper();
+
+                ThreadResources sharedResources = new ThreadResources();
+                sharedResources.TDbuffer = m_TDBuffer;
+                sharedResources.savingBuffer = m_dataSavingBuffer;
+                sharedResources.summitWrapper = m_summitWrapper;
+                sharedResources.summitManager = theSummitManager;
+                sharedResources.saveDataFileName = m_dataFileName;
+                sharedResources.samplingRate = samplingRate;
+                sharedResources.timingLogFile = m_timingLogFile;
+                sharedResources.parameters = parameters;
+                sharedResources.testMyRCPS = noDeviceTesting;
+                sharedResources.endProgram = m_exitProgram;
+                sharedResources.enableTimeSync = parameters.GetParam("Sense.APITimeSync", typeof(bool));
+
+                //now, establish connection to MyRC+S program
+                StreamingThread myRCSThread = new StreamingThread(ThreadType.myRCpS);
+                myRCSThread.StartThread(ref sharedResources);
+
+                ////Connect to Device=========================================================++
+                // Initialize the Summit Interface
+                Console.WriteLine();
+                Console.WriteLine("Creating Summit Interface...");
+                Thread.Sleep(5000);
+                ushort mode = (ushort)parameters.GetParam("TelemetryMode", typeof(int));
+
+                // Connect to CTM and INS
+                while (!SummitUtils.SummitConnect(theSummitManager, ref m_summit, ref m_summitWrapper, mode, disableBeeps))
+                {
+                    // Failed to connect, keep retrying
+                    //Console.WriteLine("Unable to establish connection, press 'r' to retry, or anything else to exit");
+                    //ConsoleKeyInfo retryKey = Console.ReadKey();
+
+                    //if (retryKey.KeyChar.ToString() != "r")
+
+                    Console.WriteLine("Unable to establish connection, retrying...");
+                    if (m_exitProgram.end)
+                    {
+                        theSummitManager.Dispose();
                         return;
                     }
                 }
 
-                // Make the Open-Ephys streaming threads
-                sendSenseThread = new StreamingThread(ThreadType.sense);
+                BatteryStatusResult outputBuffer;
+                APIReturnInfo commandInfo = m_summit.ReadBatteryLevel(out outputBuffer);
 
-                // Start the threads to stream to summit source and summit sink in open ephys
-                Console.WriteLine("Press any key to start streaming to Open-Ephys");
-                Console.ReadKey();
-                Console.WriteLine("Streaming Started");
-                sendSenseThread.StartThread(ref sharedResources);
+                TelemetryModuleInfo info;
+                m_summit.ReadTelemetryModuleInfo(out info);
 
-            }
+                Console.WriteLine();
+                Console.WriteLine(String.Format("CTM Battery Level: {0}", info.BatteryLevel));
 
-            //start data saving thread
-            StreamingThread dataSaveThread = new StreamingThread(ThreadType.dataSave);
-            dataSaveThread.StartThread(ref sharedResources);
+                // Ensure the command was successful before using the result
+                if (commandInfo.RejectCode == 0)
+                {
+                    string batteryLevel = outputBuffer.BatteryLevelPercent.ToString();
+                    Console.WriteLine("INS Battery Level: " + batteryLevel);
+                }
+                else
+                {
+                    Console.WriteLine("Unable to read battery level");
+                }
+                Console.WriteLine();
 
-            //finally register the listeners to start getting data from the INS
-            m_summit.DataReceivedTDHandler += SummitTimeDomainPacketReceived;
+                /*
+                System.IO.StreamWriter testingFile = new System.IO.StreamWriter("BatteryTesting.txt");
+                string message;
+                while (true)
+                {
+                    commandInfo = m_summit.StimChangeTherapyOff(false);
+                    message = "Stim off \t " + commandInfo.RejectCodeType.ToString() +
+                        '\t' + commandInfo.RejectCode.ToString() + '\t' + String.Format("{0:F}", DateTime.Now);
+                    testingFile.WriteLine(message);
+                    Console.WriteLine(message);
+                    if (commandInfo.RejectCode != 0)
+                    {
+                        break;
+                    }
+
+                    Thread.Sleep(1000);
+
+                    commandInfo = m_summit.StimChangeTherapyOn();
+                    message = "Stim on \t " + commandInfo.RejectCodeType.ToString() +
+                        '\t' + commandInfo.RejectCode.ToString() + '\t' + String.Format("{0:F}", DateTime.Now);
+                    testingFile.WriteLine(message);
+                    Console.WriteLine(message);
+                    if (commandInfo.RejectCode != 0)
+                    {
+                        break;
+                    }
+
+                    Thread.Sleep(1000);
+                }
+                testingFile.Close();
+                */
+
+
+                //if time-synching is enabled, do latency test
+                if (parameters.GetParam("Sense.APITimeSync", typeof(bool)))
+                {
+                    TimeSpan? span = null;
+                    m_summit.CalculateLatency(10, out span);
+                    if (span != null)
+                    {
+                        Console.Write("Latency test: " + span?.ToString("c"));
+                    }
+                    else
+                    {
+                        Console.WriteLine("Unable to perform latency test!");
+                    }
+                }
+
+
+                ////Configure Sensing============================================================
+
+                Console.WriteLine();
+                Console.WriteLine("Writing sense configuration...");
+                SenseStates theStates = SenseStates.LfpSense;
+                APIReturnInfo returnInfoBuffer;
+
+                //first turn off sensing
+                m_summit.WriteSensingState(SenseStates.None, 0x00);
+
+                //set up time domain channels configurations
+                List<TimeDomainChannel> timeDomainChannels;
+                List<int?> indexInJSON;
+                SummitUtils.ConfigureTimeDomain(parameters, out indexInJSON, out timeDomainChannels, ref samplingRate);
+                m_samplingRate = samplingRate;
+
+                //send time domain config to INS
+                returnInfoBuffer = m_summit.WriteSensingTimeDomainChannels(timeDomainChannels);
+                SensingConfiguration senseInfo;
+                returnInfoBuffer = m_summit.ReadSensingSettings(out senseInfo);
+                Console.WriteLine("Write TD Config Status: " + returnInfoBuffer.Descriptor);
+
+
+                // Set up the FFT
+                bool FFTEnabled = parameters.GetParam("Sense.FFT.Enabled", typeof(bool));
+                SenseTimeDomainChannel FFTChannel = new SenseTimeDomainChannel();
+
+                theStates = theStates | SenseStates.Fft;
+
+                //set up configuration
+                FftConfiguration FFTConfig;
+                SummitUtils.ConfigureFFT(parameters, out FFTConfig, out FFTChannel);
+
+                //send FFT config to INS
+                returnInfoBuffer = m_summit.WriteSensingFftSettings(FFTConfig);
+                Console.WriteLine("Write FFT Config Status: " + returnInfoBuffer.Descriptor);
+
+
+                // Set up power channels 
+                bool powerEnabled;
+
+                //make power channel configurations
+                List<PowerChannel> powerChannels;
+                BandEnables theBandEnables;
+                SummitUtils.ConfigurePower(parameters, indexInJSON, out powerChannels, out theBandEnables, out powerEnabled);
+
+                theStates = theStates | SenseStates.Power;
+
+                //send configurations to INS
+                returnInfoBuffer = m_summit.WriteSensingPowerChannels(theBandEnables, powerChannels);
+                Console.WriteLine("Write Power Config Status: " + returnInfoBuffer.Descriptor);
+
+
+                // Set up miscellaneous settings
+                MiscellaneousSensing miscsettings = new MiscellaneousSensing();
+
+                //first, streaming frame period
+                int paramFrameSize = parameters.GetParam("Sense.PacketPeriod", typeof(int));
+                StreamingFrameRate streamingRate;
+                try
+                {
+                    streamingRate = (StreamingFrameRate)Enum.Parse(typeof(StreamingFrameRate), "Frame" + paramFrameSize + "ms");
+                }
+                catch
+                {
+                    throw new Exception(String.Format("Packet frame size: {0}, isn't a valid selection, check JSON file specifications!",
+                        paramFrameSize));
+                }
+                miscsettings.StreamingRate = streamingRate;
+
+                //for now, disable loop recording
+                miscsettings.LrTriggers = LoopRecordingTriggers.None;
+
+
+                // Write misc and accelerometer configurations to INS
+                returnInfoBuffer = m_summit.WriteSensingMiscSettings(miscsettings);
+                Console.WriteLine("Write Misc Config Status: " + returnInfoBuffer.Descriptor);
+                returnInfoBuffer = m_summit.WriteSensingAccelSettings(AccelSampleRate.Sample32);
+                Console.WriteLine("Write Accel Config Status: " + returnInfoBuffer.Descriptor);
+
+
+                // turn on sensing components
+                m_summit.WriteSensingState(theStates, FFTEnabled ? FFTChannel : 0x00);
+                Console.WriteLine("Write Sensing Config Status: " + returnInfoBuffer.Descriptor);
+
+                // Start streaming for time domain, FFT, power, accelerometer, and time-synchronization.
+                // Leave streaming of detector events, adaptive stim, and markers disabled
+                bool enableTimeSync = parameters.GetParam("Sense.APITimeSync", typeof(bool));
+
+
+                //initialize streaming threads variables
+                m_nTDChans = parameters.GetParam("Sense.nChans", typeof(int));
+                m_prevLastValues = new double[m_nTDChans];
+
+                notifyCTM = parameters.GetParam("NotifyCTMPacketsReceived", typeof(bool));
+                interp = parameters.GetParam("Sense.InterpolateMissingPackets", typeof(bool));
+
+                ////Initialize closed-loop threads===============================================
+
+                bool streamToOpenEphys = parameters.GetParam("StreamToOpenEphys", typeof(bool));
+
+                // have to have sensing set up to do streaming to Open-Ephys! Throw error if no sensing
+                if (streamToOpenEphys)
+                {
+                    throw new Exception("Need to enable sensing if you want to stream to Open Ephys!");
+                }
+
+                // streaming to Open Ephys, set up connection
+                StreamingThread sendSenseThread = null;
+
+                if (streamToOpenEphys)
+                {
+                    Console.WriteLine();
+                    //first, perform hand-shake
+
+                    //Message structure on handshake:
+                    //
+                    //int number of channels
+                    //int buffer size
+                    //
+                    Console.WriteLine("Attempting to connect to Open-Ephys...");
+
+                    int zmqPort = parameters.GetParam("Sense.ZMQPort", typeof(int));
+                    using (ResponseSocket senseSocket = new ResponseSocket())
+                    {
+                        senseSocket.Bind("tcp://*:" + zmqPort);
+                        string inMessage;
+                        byte[] outMessage;
+
+                        inMessage = senseSocket.ReceiveFrameString();
+
+                        if (inMessage == "InitTD")
+                        {
+                            outMessage = BitConverter.GetBytes(m_TDBuffer.getNumChans());
+                            outMessage = m_TDBuffer.Concatenate(outMessage, BitConverter.GetBytes(m_TDBuffer.getBufferSize()));
+                            senseSocket.SendFrame(outMessage);
+                            Console.WriteLine("Connection with Open-Ephys Established");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Handshake with Open-Ephys failed!");
+                            Console.WriteLine("Press any key to quit");
+                            Console.ReadKey();
+                            return;
+                        }
+                    }
+
+                    // Make the Open-Ephys streaming threads
+                    sendSenseThread = new StreamingThread(ThreadType.sense);
+
+                    // Start the threads to stream to summit source and summit sink in open ephys
+                    Console.WriteLine("Press any key to start streaming to Open-Ephys");
+                    Console.ReadKey();
+                    Console.WriteLine("Streaming Started");
+                    sendSenseThread.StartThread(ref sharedResources);
+
+                }
+
+                //start data saving thread
+                StreamingThread dataSaveThread = new StreamingThread(ThreadType.dataSave);
+                dataSaveThread.StartThread(ref sharedResources);
+
+                //finally register the listeners to start getting data from the INS
+                m_summit.DataReceivedTDHandler += SummitTimeDomainPacketReceived;
                 //TODO: Add frequency domain streams
                 //theSummit.dataReceivedPower += theSummit_DataReceived_Power;
                 //theSummit.dataReceivedFFT += theSummit_DataReceived_FFT;
                 //theSummit.dataReceivedAccel += theSummit_DataReceived_Accel;
-            m_summit.UnexpectedLinkStatusHandler += SummitLinkStatusReceived;
+                m_summit.UnexpectedLinkStatusHandler += SummitLinkStatusReceived;
 
-            ////Start main loop==================================================
-            Console.WriteLine();
-            Console.WriteLine("Finished setup");
-            Console.WriteLine();
-            ConsoleKeyInfo thekey = new ConsoleKeyInfo();
+                ////Start main loop==================================================
+                Console.WriteLine();
+                Console.WriteLine("Finished setup");
+                Console.WriteLine();
+                ConsoleKeyInfo thekey = new ConsoleKeyInfo();
 
-            string quitKey = parameters.GetParam("QuitButton", typeof(string));
+                string quitKey = parameters.GetParam("QuitButton", typeof(string));
 
-            bool keepCheckingKeys = true;
+                bool keepCheckingKeys = true;
 
-            while (thekey.KeyChar.ToString() != quitKey)
-            {
-
-                //check if child threads want main thread to close
-                while (Console.KeyAvailable == false)
+                while (thekey.KeyChar.ToString() != quitKey)
                 {
-                    if (m_exitProgram.end)
+
+                    //check if child threads want main thread to close
+                    while (Console.KeyAvailable == false)
                     {
-                        keepCheckingKeys = false;
+                        if (m_exitProgram.end)
+                        {
+                            keepCheckingKeys = false;
+
+                            //check if they want to restart the main thread or just close it
+                            if (!m_exitProgram.restart)
+                            {
+
+                                //just restart, also see if there are any post-restart parameters 
+                                //that needs to be changed (e.g. ctm beeps)
+                                disableBeeps = m_exitProgram.ctmBeepDisabled;
+
+                                closeBackend = false;
+                            }
+                            else
+                            {
+                                //exit the program for good
+                                closeBackend = true;
+                            }
+
+                            break;
+                        }
+                        Thread.Sleep(250);
+                    }
+
+                    if (!keepCheckingKeys)
+                    {
                         break;
                     }
-                    Thread.Sleep(250);
+
+                    thekey = Console.ReadKey(true);
+
+
                 }
 
-                if (!keepCheckingKeys)
+                ////Close and cleaning up======================================================
+                // stop threads
+
+                if (streamToOpenEphys)
                 {
-                    break;
+                    sendSenseThread.StopThread();
+                    //getStimThread.StopThread();
                 }
+                dataSaveThread.StopThread();
+                myRCSThread.StopThread();
 
-                thekey = Console.ReadKey(true);
-
+                // Object Disposal
+                Console.WriteLine("");
+                Console.WriteLine("Disposing Summit");
+                theSummitManager.Dispose();
+                m_debugFile.closeFile();
+                m_timingLogFile.closeFile();
 
             }
-
-            ////Close and cleaning up======================================================
-            // stop threads
-
-            if (streamToOpenEphys)
-            {
-                sendSenseThread.StopThread();
-                //getStimThread.StopThread();
-            }
-            dataSaveThread.StopThread();
-            myRCSThread.StopThread();
-
-            // Object Disposal
-            Console.WriteLine("");
-            Console.WriteLine("Disposing Summit");
-            theSummitManager.Dispose();
-            m_debugFile.closeFile();
-            m_timingLogFile.closeFile();
 
         }
 
