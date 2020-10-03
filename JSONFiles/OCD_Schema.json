@@ -54,6 +54,7 @@
         "battery_level": 99,
         "sense_on": true,
         "stim_on": true,
+		"beeps_disabled": true,
 
         "sense_config": {
           "time_domain_on": true,
@@ -130,7 +131,9 @@
             [],
             []
           ]
-        }
+        },
+		
+		"success": true
 
       }
     },
@@ -208,7 +211,7 @@
     "message": {
       "description": "The specific request/command/result",
       "type": "string",
-      "enum": [ "battery", "device_info", "sense_on", "sense_off", "stim_on", "stim_off", "quit", "stim_change" ]
+      "enum": [ "battery", "device_info", "sense_on", "sense_off", "stim_on", "stim_off", "quit", "beep_change", "stim_change" ]
     }
   },
 
@@ -263,9 +266,11 @@
                   "description": "For device info status requests, use this payload structure",
                   "type": "object",
 
-                  "$ref": "#/definitions/command_result",
+				  "allOf":  [
+				  
+                  {"$ref": "#/definitions/command_result"},
 
-                  "if": {
+                  {"if": {
                     "properties": { "success": { "const": true } }
                   },
 
@@ -289,6 +294,11 @@
                         "description": "Whether stim is turned on or not",
                         "type": "boolean"
                       },
+					  
+					  "beeps_disabled": {
+						"description": "Whether ctm beeps are disabled or not",
+						"type": "boolean"
+					  },
 
                       "sense_config": {
                         "description": "Information about the sensing setup",
@@ -680,8 +690,10 @@
                       }
 
                     },
-                    "required": [ "battery_level", "sense_on", "stim_on", "sense_config", "stim_config" ]
-                  }
+                    "required": [ "battery_level", "sense_on", "stim_on", "beeps_disabled", "sense_config", "stim_config" ]
+                  }}
+				  
+				  ]
 
                 }
 
@@ -809,7 +821,24 @@
 
               }
             }
-          }
+          },
+		  
+		  {
+            "if": {
+              "properties": { "message": { "const": "beep_change" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "Payload structure for the result of a command to turn ctm beeps on or off",
+                  "$ref": "#/definitions/command_result"
+                }
+
+              }
+            }
+          },
 
         ],
 
@@ -951,6 +980,32 @@
 
                   },
                   "required": [ "run_imped_test" ]
+
+                }
+              }
+            }
+          },
+		  
+		  {
+            "if": {
+              "properties": { "message": { "const": "beep_change" } }
+            },
+
+            "then": {
+              "properties": {
+
+                "payload": {
+                  "description": "For disable/enable beeps posts, use this payload structure",
+                  "type": "object",
+                  "properties": {
+
+                    "disable_beeps": {
+                      "description": "whether to disable ctm beeps or not, will induce a backend restart",
+                      "type": "boolean"
+                    }
+
+                  },
+                  "required": [ "disable_beeps" ]
 
                 }
               }
