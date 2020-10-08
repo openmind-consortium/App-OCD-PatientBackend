@@ -123,6 +123,7 @@ namespace Summit_Interface
             //settings which we might want to change on restart (e.g. ctm beep enabling)
             bool disableBeeps = (bool)parameters.GetParam("DisableAllCTMBeeps", typeof(bool));
 
+            m_exitProgram = new endProgramWrapper();
             m_exitProgram.ctmBeepDisabled = disableBeeps;
 
             while (!closeBackend)
@@ -173,7 +174,6 @@ namespace Summit_Interface
                 int paramSamplingRate = parameters.GetParam("Sense.SamplingRate", typeof(int));
                 TdSampleRates samplingRate = (TdSampleRates)Enum.Parse(typeof(TdSampleRates), "Sample" + paramSamplingRate.ToString("0000") + "Hz");
                 bool noDeviceTesting = parameters.GetParam("NoDeviceTesting", typeof(bool));
-                m_exitProgram = new endProgramWrapper();
 
                 ThreadResources sharedResources = new ThreadResources();
                 sharedResources.TDbuffer = m_TDBuffer;
