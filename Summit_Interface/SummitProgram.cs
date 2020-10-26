@@ -484,7 +484,7 @@ namespace Summit_Interface
                             keepCheckingKeys = false;
 
                             //check if they want to restart the main thread or just close it
-                            if (!m_exitProgram.restart)
+                            if (m_exitProgram.restart)
                             {
 
                                 //just restart, also see if there are any post-restart parameters 
