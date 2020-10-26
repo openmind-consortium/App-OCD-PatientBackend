@@ -313,7 +313,11 @@ namespace Summit_Interface
 
                 while (true)
                 {
-                    if (m_stopped == true) { Thread.Sleep(500); break; }
+                    if (m_stopped == true)
+                    {
+                        Thread.Sleep(500);
+                        break;
+                    }
 
                     //listening for messages is blocking for 1000 ms, after which it will check if it should exit thread, and if not, listen again (have this so that this thread isn't infinitely blocking when trying to join)
                     myRCSSocket.TryReceiveFrameString(TimeSpan.FromMilliseconds(1000), out requestMessage);
@@ -362,8 +366,8 @@ namespace Summit_Interface
                         returnMsg.message = receivedMsg.message;
                         returnMsg.message_type = "result";
 
-                        //first make sure INS/CTM is connected
-                        if (!resources.summitWrapper.isInitialized)
+                        //first make sure INS/CTM is connected (if not testing)
+                        if (!testing && !resources.summitWrapper.isInitialized)
                         {
                             returnMsg.payload.success = false;
                             returnMsg.payload.error_code = 3;
@@ -520,6 +524,7 @@ namespace Summit_Interface
                                     //tell main program to quit
                                     resources.endProgram.end = true;
                                     resources.endProgram.restart = false;
+                                    Thread.Sleep(600);
                                     break;
 
                             }
@@ -822,7 +827,11 @@ namespace Summit_Interface
                             returnMsg.payload.error_message = "INS Disconnected";
                         }
                         break;
-                    
+
+                    case "beep_change":
+                        //for beep changes restart backend, also always send success
+                        returnMsg.payload.success = true;
+                        break;
 
                 }
                 
