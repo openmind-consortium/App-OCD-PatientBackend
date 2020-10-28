@@ -360,7 +360,7 @@ namespace Summit_Interface
 
                         //log time received to timing file
                         string timestamp = DateTime.Now.Ticks.ToString();
-                        resources.timingLogFile.WriteLine(receivedMsg.message + " " + timestamp);
+                        resources.timingLogFile.WriteLine("Received " + receivedMsg.message + " " + timestamp);
 
                         //initialize return message object
                         returnMsg.message = receivedMsg.message;
@@ -399,7 +399,7 @@ namespace Summit_Interface
                                     else
                                     {
                                         //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket, resources))
                                         {
                                             continue;
                                         }
@@ -429,7 +429,7 @@ namespace Summit_Interface
                                     else
                                     {
                                         //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket, resources))
                                         {
                                             continue;
                                         }
@@ -464,7 +464,7 @@ namespace Summit_Interface
                                     else
                                     {
                                         //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket, resources))
                                         {
                                             continue;
                                         }
@@ -491,7 +491,7 @@ namespace Summit_Interface
                                     else
                                     {
                                         //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket, resources))
                                         {
                                             continue;
                                         }
@@ -513,7 +513,7 @@ namespace Summit_Interface
                                     else
                                     {
                                         //For testing, send back some pre-defined responses
-                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket))
+                                        if (!testResponse(receivedMsg.message, messageSchema, loadReturnMsg, myRCSSocket, resources))
                                         {
                                             continue;
                                         }
@@ -556,6 +556,8 @@ namespace Summit_Interface
                         if (responseMsgObj.IsValid(messageSchema))
                         {
                             myRCSSocket.SendFrame(responseMsgText);
+                            string timestamp = DateTime.Now.Ticks.ToString();
+                            resources.timingLogFile.WriteLine("Replied " + returnMsg.message + " " + timestamp);
                         }
                         else
                         {
@@ -691,10 +693,14 @@ namespace Summit_Interface
         }
 
 
-        public bool testResponse(string responseType, JSchema messageSchema, bool loadResponse, ResponseSocket myRCSSocket)
+        public bool testResponse(string responseType, JSchema messageSchema, bool loadResponse, ResponseSocket myRCSSocket, ThreadResources resources)
         {
+            //generate a return messge here
+            MyRCSMsg returnMsg = new MyRCSMsg();
+
             //if we aren't given a fixed response already, load in a response from a JSON file
             string responseMsgText;
+
             if (loadResponse)
             {
                 //load in response message
@@ -719,8 +725,6 @@ namespace Summit_Interface
             }
             else
             {
-                //generate a return messge here
-                MyRCSMsg returnMsg = new MyRCSMsg();
 
                 // randomly determine if succesfully turned sense on or some error
                 returnMsg.message = responseType;
@@ -844,6 +848,10 @@ namespace Summit_Interface
             if (testMsgObj.IsValid(messageSchema))
             {
                 myRCSSocket.SendFrame(responseMsgText);
+
+                string timestamp = DateTime.Now.Ticks.ToString();
+                resources.timingLogFile.WriteLine("Replied " + returnMsg.message + " " + timestamp);
+
                 return true;
             }
             else

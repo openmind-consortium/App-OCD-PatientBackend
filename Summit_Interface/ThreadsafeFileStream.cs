@@ -19,6 +19,7 @@ namespace Summit_Interface
         public ThreadsafeFileStream(string filename)
         {
             m_fileStream = new System.IO.StreamWriter(filename);
+            m_fileStream.AutoFlush = true;
             m_RWLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         }
 

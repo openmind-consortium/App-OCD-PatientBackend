@@ -117,6 +117,38 @@ namespace Summit_Interface
 
             ConsoleKeyInfo input = new ConsoleKeyInfo();
 
+            //set up data saving files
+            //set up files
+            m_dataFileName = parameters.GetParam("Sense.SaveFileName", typeof(string));
+            if (m_dataFileName.Length > 4)
+            {
+                if (m_dataFileName.Substring(m_dataFileName.Length - 4, 4) == ".txt")
+                {
+                    m_dataFileName = m_dataFileName.Substring(0, m_dataFileName.Length - 4);
+                }
+            }
+
+            //check if the file exists, and warn user that it will be overwritten if it does
+            List<string> dataFilesNames = new List<string> { m_dataFileName + "-Timing.txt",
+                m_dataFileName + "-Debug.txt", m_dataFileName + "-Impedance.txt" };
+
+            bool filesExists = false;
+            foreach (string filename in dataFilesNames)
+            {
+                if (File.Exists(filename))
+                {
+                    Console.WriteLine("Warning: " + filename + " already exsits, it will be overwritten!");
+                    filesExists = true;
+                }
+            }
+
+            m_timingLogFile = new ThreadsafeFileStream(m_dataFileName + "-Timing.txt");
+            m_debugFile = new ThreadsafeFileStream(m_dataFileName + "-Debug.txt");
+            System.IO.StreamWriter m_impedanceFile = new System.IO.StreamWriter(m_dataFileName + "-Impedance.txt");
+
+            string timestamp = DateTime.Now.Ticks.ToString();
+            m_timingLogFile.WriteLine("Program Started " + timestamp);
+
             // now set up main loop to re-initiate backend if the user wants to restart the backend (e.g. to change ctm beep settings)
             bool closeBackend = false;
 
@@ -136,35 +168,6 @@ namespace Summit_Interface
                 m_BPBuffer = new INSBuffer(numSenseChans * 2, bufferSize);
                 m_dataSavingBuffer = new INSBuffer(numSenseChans, bufferSize);
                 m_summitWrapper = new SummitSystemWrapper();
-
-                //set up files
-                m_dataFileName = parameters.GetParam("Sense.SaveFileName", typeof(string));
-                if (m_dataFileName.Length > 4)
-                {
-                    if (m_dataFileName.Substring(m_dataFileName.Length - 4, 4) == ".txt")
-                    {
-                        m_dataFileName = m_dataFileName.Substring(0, m_dataFileName.Length - 4);
-                    }
-                }
-
-                //check if the file exists, and warn user that it will be overwritten if it does
-                List<string> dataFilesNames = new List<string> { m_dataFileName + "-Timing.txt",
-                m_dataFileName + "-Debug.txt", m_dataFileName + "-Impedance.txt" };
-
-                bool filesExists = false;
-                foreach (string filename in dataFilesNames)
-                {
-                    if (File.Exists(filename))
-                    {
-                        Console.WriteLine("Warning: " + filename + " already exsits, it will be overwritten!");
-                        filesExists = true;
-                    }
-                }
-
-
-                m_timingLogFile = new ThreadsafeFileStream(m_dataFileName + "-Timing.txt");
-                m_debugFile = new ThreadsafeFileStream(m_dataFileName + "-Debug.txt");
-                System.IO.StreamWriter m_impedanceFile = new System.IO.StreamWriter(m_dataFileName + "-Impedance.txt");
 
                 // Create a manager
                 SummitManager theSummitManager = new SummitManager("OCD-Sense-Session");
@@ -529,11 +532,26 @@ namespace Summit_Interface
                 Console.WriteLine("");
                 Console.WriteLine("Disposing Summit");
                 theSummitManager.Dispose();
-                m_debugFile.closeFile();
-                m_timingLogFile.closeFile();
-                m_impedanceFile.Close();
+
+                if (!closeBackend)
+                {
+                    Console.WriteLine("");
+                    Console.WriteLine("Restarting backend");
+                    timestamp = DateTime.Now.Ticks.ToString();
+                    m_timingLogFile.WriteLine("Restarting backend " + timestamp);
+                }
 
             }
+
+            // Object Disposal
+            timestamp = DateTime.Now.Ticks.ToString();
+            m_timingLogFile.WriteLine("Closing program " + timestamp);
+
+            Console.WriteLine("");
+            Console.WriteLine("Closing Program");
+            m_debugFile.closeFile();
+            m_timingLogFile.closeFile();
+            m_impedanceFile.Close();
 
         }
 
