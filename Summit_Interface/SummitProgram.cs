@@ -533,6 +533,10 @@ namespace Summit_Interface
                 Console.WriteLine("Disposing Summit");
                 theSummitManager.Dispose();
 
+                //reset program end flag
+                m_exitProgram.end = false;
+                m_exitProgram.restart = false;
+
                 if (!closeBackend)
                 {
                     Console.WriteLine("");
