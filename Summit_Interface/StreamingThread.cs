@@ -505,7 +505,7 @@ namespace Summit_Interface
                         returnMsg.message_type = "result";
 
                         //first make sure INS/CTM is connected
-                        if (!resources.summitWrapper.isInitialized)
+                        if (!resources.summitWrapper.isInitialized && !testing)
                         {
                             returnMsg.payload.success = false;
                             returnMsg.payload.error_code = 3;
